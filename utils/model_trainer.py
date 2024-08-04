@@ -57,7 +57,7 @@ class TrainingManager:
             
             inputs, labels = inputs.to(self.device), labels.to(self.device)
             self._optimizer.zero_grad()
-            outputs, regularization_losses = self._model(inputs)
+            outputs, regularization_losses = self._model(inputs, labels)
             loss = self._criterion(outputs, labels)
             
             if regularization_losses is not None:

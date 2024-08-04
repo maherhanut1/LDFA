@@ -200,7 +200,7 @@ def train_PFA_cifar10(session_name, layer, max_lr =1e-4, bn=512, ranks = [None],
         all_accuracies[rank] = []
         for i in range(num_expirements):
             model = FC(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
-            model.net[LAYER_IDX[layer]] = rAFALinear(bn, bn, rank=rank) if layer != 'layer4' else rAFALinear(bn,total_classes, rank=rank)
+            model.net[LAYER_IDX[layer]] = rAFALinear(bn, bn, rank=rank) if layer != 'layer4' else rAFALinear(bn,total_classes, rank=rank, update_Q=True, update_P=True)
             model.to(device)
             max_lr = max_lr
             tm = TrainingManager(model,
@@ -389,7 +389,7 @@ if __name__ == "__main__":
 ##################### Final Commands ############################################
 
 ########################################### train on cifar10 512, 128 neurons x 4 layers x ranks with batchnorm ########################################### 
-   train_PFA_cifar10('update_P_test', 'layer4', max_lr=4e-6, bn=512, ranks=[128, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
+   train_PFA_cifar10('update_P_test', 'layer4', max_lr=4e-6, bn=512, ranks=[128], decay=1e-6)
     # train_PFA_cifar10('rAFA_one_layer_128_x4_batch_norm', 'layer2', max_lr=8e-6, bn=128, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
 ######################################################################################################################################################
 
