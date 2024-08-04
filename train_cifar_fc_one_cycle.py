@@ -186,7 +186,7 @@ def train_PFA_cifar100_subsets(session_name, layer, max_lr =1e-4, bn=512, ranks 
 
 def train_PFA_cifar10(session_name, layer, max_lr =1e-4, bn=512, ranks = [None], decay=1e-6):
     
-    device = 'cpu'
+    device = 'cuda'
     batch_size = 64
     total_classes = 10
     epochs= 50
@@ -389,7 +389,7 @@ if __name__ == "__main__":
 ##################### Final Commands ############################################
 
 ########################################### train on cifar10 512, 128 neurons x 4 layers x ranks with batchnorm ########################################### 
-   train_PFA_cifar10('update_P_test', 'layer4', max_lr=4e-6, bn=512, ranks=[128], decay=1e-6)
+   train_PFA_cifar10('update_P_test', 'layer4', max_lr=4e-6, bn=512, ranks=[30], decay=1e-6)
     # train_PFA_cifar10('rAFA_one_layer_128_x4_batch_norm', 'layer2', max_lr=8e-6, bn=128, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
 ######################################################################################################################################################
 

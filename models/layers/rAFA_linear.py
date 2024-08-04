@@ -35,11 +35,11 @@ class LinearGrad(autograd.Function):
             grad_weight = grad_output.t().mm(input)
         
         if context.needs_input_grad[2]:
-            one_hot_targets = torch.zeros(grad_output.shape)
-            one_hot_targets.scatter_(1, gt.unsqueeze(1), 1)
-            grad_P = one_hot_targets.T.mm(one_hot_targets).mm(P) / (grad_output.shape[0]**2)
+            one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
+            one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
+            grad_P = -1 * one_hot_targets.T.mm(one_hot_targets).mm(P) #/ (grad_output.shape[0])
            # grad_P = grad_P.t()  #/ torch.linalg.norm(grad_P)
-            # P = P / torch.linalg.norm(P, dim = 1)[...,None]+ 1e-8
+            P = P / torch.linalg.norm(P, dim = 1)[...,None]+ 1e-8
             
         if grad_input_intermediate is not None and context.needs_input_grad[3]:
             grad_Q = grad_input_intermediate.t().mm(input) #/ (grad_output.shape[0])
