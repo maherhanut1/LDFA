@@ -84,8 +84,8 @@ class TrainingManager:
             del outputs
             del labels
            
-            if self._scheduler:
-                self._scheduler.step()
+        if self._scheduler:
+            self._scheduler.step()
                  
         epoch_loss, epoch_accuracy = running_loss / len(self._trainloader), running_acc / len(self._trainloader)
         return epoch_loss, epoch_accuracy

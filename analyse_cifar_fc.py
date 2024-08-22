@@ -98,7 +98,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
     
     max_rank = 0
     #read accuracies for all layers, all ranks
-    blues = plt.cm.Blues(np.linspace(0.4, 1, 3))
+    blues = plt.cm.Blues(np.linspace(0.4, 1, 4))
     c_idx = 0
     for k,v in acc_dictionaries.items():
         vals_acc = []
@@ -131,7 +131,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         plt.errorbar(ranks, means, yerr=stds, label=f'{k}: Mean ± STD', fmt='-o', capsize=5, color=blues[c_idx])
         c_idx+=1
     
-    for dictionary, name in extras:
+    for dictionary, name, color in extras:
         vals_acc =[]
         for _,v_acc in dictionary.items():
             v_acc= sorted(v_acc)[-top_k:]
@@ -140,12 +140,12 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         vals_acc = np.array(vals_acc)
         mean = vals_acc.mean(1)
         
-        plt.plot([1,max_rank], [mean, mean], linestyle='-.', linewidth=2, color='black')
+        plt.plot([1,max_rank], [mean, mean], linestyle='-.', linewidth=2, color=color)
         std = vals_acc.std(1)
         
         plt.errorbar([32], [mean],yerr=[std], fmt='-.', capsize=5,
-        capthick=2, ecolor='black', marker='s', 
-        markersize=7, linestyle='-.', linewidth=2, label=f'{name}: Mean ± STD', color='black')
+        capthick=2, ecolor=color, marker='s', 
+        markersize=7, linestyle='-.', linewidth=2, label=f'{name}: Mean ± STD', color=color)
         
         
     # plt.grid(True)
@@ -311,15 +311,17 @@ def remove_epochs(path):
 
 def plot_cifar10():
     # session_name = 'rAFA_one_layer_128_x4_batch_norm'
-    session_name = 'rAFA_one_layer_512_x4_batch_norm'
+    session_name = 'update_P_with_coming_rep_lr_8e5'
     dset= 'cifar10'
     layer_2 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer2/accuracies.json")
     layer_3 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer3/accuracies.json")
     layer_4 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4/accuracies.json")
     
+    layer_4_update_p = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/update_P_512_x4_constraint_all_batch_norm_32_32_32/all/accuracies.json")
+    
     BP_baseline = load_dict_from_json(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/rAFA_one_layer_512_x4_constraint_all_batch_norm_BP/all/accuracies.json')
     # plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/128_x4.pdf', extras=[(BP_baseline, 'BP')], lims= [42, 62.5])
-    plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/512_x4.pdf', extras=[(BP_baseline, 'BP')], lims=[42, 62.5])
+    plot_accuracies_from_dicts({'a2': layer_2, 'a3': layer_3, 'a4': layer_4,}, top_k=10, save_name='plots/512_x4.pdf', extras=[(layer_4_update_p, 'Constraint_all', 'red'), (BP_baseline, 'back_prob', 'black')], lims=[42, 62.5])
            
 if __name__ == "__main__":
     

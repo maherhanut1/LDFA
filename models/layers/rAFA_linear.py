@@ -35,9 +35,13 @@ class LinearGrad(autograd.Function):
             grad_weight = grad_output.t().mm(input)
         
         if context.needs_input_grad[2]:
-            one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
-            one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
-            grad_P = -1 * one_hot_targets.T.mm(one_hot_targets).mm(P) #/ (grad_output.shape[0])
+            if gt is not None:
+                one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
+                one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
+                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(one_hot_targets.T.mm(one_hot_targets).mm(P)) / grad_output.shape[0]
+            else:
+                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(grad_output.T.mm(grad_output).mm(P)) / grad_output.shape[0]
+                
            # grad_P = grad_P.t()  #/ torch.linalg.norm(grad_P)
             P = P / torch.linalg.norm(P, dim = 1)[...,None]+ 1e-8
             
@@ -52,7 +56,7 @@ class LinearGrad(autograd.Function):
 
 
 class Linear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, rank: int, bias: bool = True, layer_config: dict = None, update_P = True, update_Q = False) -> None:
+    def __init__(self, in_features: int, out_features: int, rank: int, bias: bool = True, layer_config: dict = None, update_P = True, update_Q = False, requires_gt = False) -> None:
         super(Linear, self).__init__(in_features, out_features, bias)
         self.layer_config = layer_config
 
@@ -70,7 +74,7 @@ class Linear(nn.Linear):
         self.options = self.layer_config["options"]
         self.type = self.layer_config["type"]
         self.init = self.options["init"]
-        self.requires_gt = True if update_P else False
+        self.requires_gt = True if update_P and requires_gt else False
         self.rank = rank
         self.Q = nn.Parameter(torch.Tensor(self.rank, in_features), requires_grad=update_Q)
         self.P = nn.Parameter(torch.Tensor(out_features, self.rank), requires_grad=update_P)
