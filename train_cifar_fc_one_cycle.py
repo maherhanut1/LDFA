@@ -28,7 +28,7 @@ LAYER_IDX = {
     'layer1': 0,
     'layer2': 3,
     'layer3': 6,
-    'layer4': 9,
+    'layer4': 10,
     # 'layer5': 8,
     # 'layer6': 10
 }
@@ -184,12 +184,55 @@ def train_PFA_cifar100_subsets(session_name, layer, max_lr =1e-4, bn=512, ranks 
         json.dump(all_accuracies, f)
 
 
+# def train_PFA_cifar10(session_name, layer, max_lr =1e-4, bn=512, ranks = [None], decay=1e-6):
+    
+#     device = 'cuda'
+#     batch_size = 64
+#     total_classes = 10
+#     epochs= 80
+#     num_expirements = 10
+#     session_name = session_name
+#     dset_name = 'cifar10'
+#     trainloader, testloader = get_cifar10_loaders(batch_size=batch_size)
+#     all_accuracies = dict()
+#     # {'max_lr': max_lr, 'total_steps': epochs*len(trainloader), 'div_factor': 10, 'final_div_factor': 100}
+#     for rank in ranks:
+#         all_accuracies[rank] = []
+#         for i in range(num_expirements):
+#             model = FC(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
+#             model.net[LAYER_IDX[layer]] = rAFALinear(bn, bn, rank=rank, update_P=True, update_Q=True, requires_gt=False) if layer != 'layer4' else rAFALinear(bn,total_classes, rank=rank, update_Q=True, update_P=True, requires_gt=True)
+#             model.to(device)
+#             max_lr = max_lr
+#             tm = TrainingManager(model,
+#                             trainloader,
+#                             testloader,
+#                             optim.RMSprop,
+#                             nn.CrossEntropyLoss(),
+#                             epochs,
+#                             OneCycleLR,
+#                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
+#                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
+#                             scheduler_params={'max_lr': max_lr, 'total_steps': epochs*len(trainloader), 'div_factor': 10, 'final_div_factor': 1e5, 'pct_start': 0.4},
+#                             device=device
+#                             )
+            
+#             val_accuracy = tm.train_model()
+#             all_accuracies[rank].append(val_accuracy)
+            
+#     import json
+    
+    
+#     with open(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/accuracies.json', 'w') as f:
+#         json.dump(all_accuracies, f)
+
+
+
 def train_PFA_cifar10(session_name, layer, max_lr =1e-4, bn=512, ranks = [None], decay=1e-6):
     
     device = 'cuda'
     batch_size = 64
     total_classes = 10
-    epochs= 80
+    epochs= 60
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
@@ -212,7 +255,7 @@ def train_PFA_cifar10(session_name, layer, max_lr =1e-4, bn=512, ranks = [None],
                             OneCycleLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'max_lr': max_lr, 'total_steps': epochs*len(trainloader), 'div_factor': 10, 'final_div_factor': 1e5, 'pct_start': 0.4},
+                            scheduler_params={'max_lr': max_lr, 'total_steps': epochs, 'div_factor': 15, 'final_div_factor': 5e5, 'pct_start': 0.12, 'anneal_strategy': 'cos'},
                             device=device
                             )
             
@@ -224,7 +267,49 @@ def train_PFA_cifar10(session_name, layer, max_lr =1e-4, bn=512, ranks = [None],
     
     with open(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/accuracies.json', 'w') as f:
         json.dump(all_accuracies, f)
+        
+        
 
+def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks = [None], decay=1e-6):
+    
+    device = 'cuda'
+    batch_size = 64
+    total_classes = 10
+    epochs= 80
+    num_expirements = 10
+    session_name = session_name
+    dset_name = 'cifar10'
+    trainloader, testloader = get_cifar10_loaders(batch_size=batch_size)
+    all_accuracies = dict()
+    # {'max_lr': max_lr, 'total_steps': epochs*len(trainloader), 'div_factor': 10, 'final_div_factor': 100}
+    for rank in ranks:
+        all_accuracies[rank] = []
+        for i in range(num_expirements):
+            model = FC(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
+            model.net[LAYER_IDX[layer]] = rAFALinear(bn, bn, rank=rank, update_P=True, update_Q=True, requires_gt=True) if layer != 'layer4' else rAFALinear(bn,total_classes, rank=rank, update_Q=True, update_P=True, requires_gt=True)
+            model.to(device)
+            max_lr = max_lr
+            tm = TrainingManager(model,
+                            trainloader,
+                            testloader,
+                            optim.Adam,
+                            nn.CrossEntropyLoss(),
+                            epochs,
+                            ExponentialLR,
+                            rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
+                            optimizer_params={'lr': max_lr, 'weight_decay': decay},
+                            scheduler_params={'gamma': 0.96},  #0.97
+                            device=device
+                            )
+            
+            val_accuracy = tm.train_model()
+            all_accuracies[rank].append(val_accuracy)
+            
+    import json
+    
+    
+    with open(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/accuracies.json', 'w') as f:
+        json.dump(all_accuracies, f)
 
 
 def train_PFA_cifar10_no_constraint(session_name, max_lr =8e-6, bn=512, decay=1e-6):
@@ -269,12 +354,12 @@ def train_PFA_cifar10_no_constraint(session_name, max_lr =8e-6, bn=512, decay=1e
     with open(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all/accuracies.json', 'w') as f:
         json.dump(all_accuracies, f)
         
-def train_PFA_cifar10_constraint_all(session_name, max_lr=8e-6, bn=512, decay=1e-6):
+def train_PFA_cifar10_constraint_all(session_name, max_lr=8e-5, bn=512, decay=1e-6):
     
     device = 'cuda'
     batch_size = 64
     total_classes = 10
-    epochs= 40
+    epochs= 60
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
@@ -300,7 +385,7 @@ def train_PFA_cifar10_constraint_all(session_name, max_lr=8e-6, bn=512, decay=1e
                             OneCycleLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all/r_{bn}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'max_lr': max_lr, 'total_steps': epochs*len(trainloader), 'div_factor': 10, 'final_div_factor': 1e5, 'pct_start': 0.4},
+                            scheduler_params={'max_lr': max_lr, 'total_steps': epochs, 'div_factor': 10, 'final_div_factor': 5e5, 'pct_start': 0.12},
                             device=device
                             )
             
@@ -394,10 +479,16 @@ if __name__ == "__main__":
     # train_PFA_cifar10('update_P_with_coming_rep_lr_8_e_5', 'layer3', max_lr= 8e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
     # train_PFA_cifar10('update_P_with_coming_rep_lr_8_e_5', 'layer2', max_lr= 8e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
     
-    train_PFA_cifar10_constraint_all('update_P_512_x4_constraint_all_batch_norm_32_32_32', max_lr=8e-5, bn=512, decay=1e-6)
-    train_PFA_cifar10('update_P_with_coming_rep_lr_8e5', 'layer4', max_lr= 8e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
-    train_PFA_cifar10('update_P_with_coming_rep_lr_8e5', 'layer3', max_lr= 8e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
-    train_PFA_cifar10('update_P_with_coming_rep_lr_8e5', 'layer2', max_lr= 8e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
+    # learning_rates = np.linspace(8e-6, 6e-5, 8)
+    # train_PFA_cifar10('update_p_1e5_oneCycle', 'layer4', max_lr= 1e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
+    # train_PFA_cifar10('update_p_1e5_oneCycle', 'layer3', max_lr= 1e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
+    # train_PFA_cifar10('update_p_1e5_oneCycle', 'layer2', max_lr= 1e-5, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
+    
+    train_PFA_cifar10_exp_decay('update_pq_5e4_expdecay_95_nogt', 'layer4', max_lr= 3e-4, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1][::-1], decay=1e-6)
+    # train_PFA_cifar10_exp_decay('update_pq_5e4_expdecay_95_nogt', 'layer3', max_lr= 3e-4, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1][::-1], decay=1e-6)
+    # train_PFA_cifar10_exp_decay('update_pq_5e4_expdecay_95_nogt', 'layer4', max_lr= 3e-4, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1][::-1], decay=1e-6)
+    
+    # train_PFA_cifar10_constraint_all('update_P_512_x4_constraint_all_batch_norm_32_32_32', max_lr=7e-5, bn=512, decay=1e-6)
     # train_PFA_cifar10('rAFA_one_layer_128_x4_batch_norm', 'layer2', max_lr=8e-6, bn=128, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
 ######################################################################################################################################################
 

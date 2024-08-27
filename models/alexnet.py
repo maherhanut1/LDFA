@@ -60,7 +60,7 @@ class AlexNet_cifar(nn.Module):
             nn.Linear(1024, num_classes)
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, gt=None) -> torch.Tensor:
         x = self.retina(x)
         x = self.vvs(x)
         x = torch.flatten(x, 1)

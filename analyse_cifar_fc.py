@@ -311,17 +311,17 @@ def remove_epochs(path):
 
 def plot_cifar10():
     # session_name = 'rAFA_one_layer_128_x4_batch_norm'
-    session_name = 'update_P_with_coming_rep_lr_8e5'
+    session_name = 'update_pq_5e4_expdecay_95_nogt'
     dset= 'cifar10'
     layer_2 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer2/accuracies.json")
     layer_3 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer3/accuracies.json")
     layer_4 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4/accuracies.json")
     
-    layer_4_update_p = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/update_P_512_x4_constraint_all_batch_norm_32_32_32/all/accuracies.json")
+    # layer_4_update_p = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/update_P_512_x4_constraint_all_batch_norm_32_32_32/all/accuracies.json")
     
     BP_baseline = load_dict_from_json(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/rAFA_one_layer_512_x4_constraint_all_batch_norm_BP/all/accuracies.json')
     # plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/128_x4.pdf', extras=[(BP_baseline, 'BP')], lims= [42, 62.5])
-    plot_accuracies_from_dicts({'a2': layer_2, 'a3': layer_3, 'a4': layer_4,}, top_k=10, save_name='plots/512_x4.pdf', extras=[(layer_4_update_p, 'Constraint_all', 'red'), (BP_baseline, 'back_prob', 'black')], lims=[42, 62.5])
+    plot_accuracies_from_dicts({'a2': layer_2, 'a3': layer_3, 'a4': layer_4,}, top_k=10, save_name='plots/512_x4.pdf', extras=[(BP_baseline, 'back_prob', 'black')], lims=[42, 62.5])
            
 if __name__ == "__main__":
     

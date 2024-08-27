@@ -38,9 +38,9 @@ class LinearGrad(autograd.Function):
             if gt is not None:
                 one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
                 one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
-                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(one_hot_targets.T.mm(one_hot_targets).mm(P)) / grad_output.shape[0]
+                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(one_hot_targets.T.mm(one_hot_targets).mm(P)) #/ grad_output.shape[0]
             else:
-                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(grad_output.T.mm(grad_output).mm(P)) / grad_output.shape[0]
+                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(grad_output.T.mm(grad_output).mm(P))
                 
            # grad_P = grad_P.t()  #/ torch.linalg.norm(grad_P)
             P = P / torch.linalg.norm(P, dim = 1)[...,None]+ 1e-8

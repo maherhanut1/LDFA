@@ -19,6 +19,7 @@ class FC(nn.Module):
                                   nn.Linear(hidden_dim, hidden_dim),
                                   nn.BatchNorm1d(hidden_dim),
                                   nn.ReLU(),
+                                  nn.Dropout(p=0.4),
                                   nn.Linear(hidden_dim, num_classes))
 
     def forward(self, x: torch.Tensor, gt = None) -> torch.Tensor:
