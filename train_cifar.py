@@ -47,23 +47,23 @@ def train(layer, lr, wd, ranks):
     batch_size = 64
     vvs_depth=3
     trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
-    vvs_idx_dict = {
-        'vvs1': 0,
-        'vvs2': 2,
-        'vvs3': 4,
-    }
     # vvs_idx_dict = {
     #     'vvs1': 0,
-    #     'vvs2': 3,
-    #     'vvs3': 6,
+    #     'vvs2': 2,
+    #     'vvs3': 4,
     # }
+    vvs_idx_dict = {
+        'vvs1': 0,
+        'vvs2': 3,
+        'vvs3': 6,
+    }
     
             
     epochs = 100
     vvs_layer = layer
     num_expirements = 3
     accuracies = dict()
-    session_name = 'CNN_bn_32_BP'
+    session_name = 'kt7tukuytk'
     max_lr = lr #5e-6
     total_steps = len(trainloader) * epochs
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
@@ -71,7 +71,7 @@ def train(layer, lr, wd, ranks):
         accuracies[rank] = []
         for i in range(num_expirements):
             model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=total_classes, vvs_depth=vvs_depth, device=device)
-            # model.vvs[vvs_idx_dict[vvs_layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
+            model.vvs[vvs_idx_dict[vvs_layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
             model.to(device)
             tm = TrainingManager(model,
                                 trainloader,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     
     #for layer in ['vvs3']:
     # train('vvs1', 8e-6)
-    train('BP', 8e-6, wd = 1e-6, ranks=[16])
+    train('vvs3', 8e-6, wd = 1e-6, ranks=[10])
     # train('vvs3', 1e-5, wd = 1e-6, ranks=[2, 8])
     # train('vvs3', 8e-6)
     # train('vvs2', 8e-6)

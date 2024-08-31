@@ -41,13 +41,13 @@ class AlexNet_cifar(nn.Module):
         elif vvs_depth == 3:
             self.vvs = nn.Sequential(
                 nn.Conv2d(bn, 32, kernel_size=kernel_size, padding=kernel_size//2),
-                # nn.BatchNorm2d(32),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.Conv2d(bn, 32, kernel_size=kernel_size, padding=kernel_size//2),
-                # nn.BatchNorm2d(32),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.Conv2d(bn, 32, kernel_size=kernel_size, padding=kernel_size//2),
-                # nn.BatchNorm2d(32),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
             )
         
