@@ -275,20 +275,20 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
     device = 'cuda'
     batch_size = 32
     total_classes = 10
-    epochs= 100
+    epochs= 80
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
     trainloader, testloader = get_cifar10_loaders(batch_size=batch_size)
     all_accuracies = dict()
     # {'max_lr': max_lr, 'total_steps': epochs*len(trainloader), 'div_factor': 10, 'final_div_factor': 100}
-    for rank in ranks:
+    for i, rank in enumerate(ranks):
+        max_lr = max_lrs[i]
         all_accuracies[rank] = []
         for i in range(num_expirements):
             model = FC(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
             model.net[LAYER_IDX[layer]] = rAFALinear(bn, bn, rank=rank, update_P=True, update_Q=True, requires_gt=False) if layer != 'layer4' else rAFALinear(bn,total_classes, rank=rank, update_Q=True, update_P=True, requires_gt=True)
             model.to(device)
-            max_lr = max_lr
             tm = TrainingManager(model,
                             trainloader,
                             testloader,
@@ -478,7 +478,9 @@ if __name__ == "__main__":
 
 
     # train_PFA_cifar10_BP('2e4_expdecay_96_BP', max_lr=2e-4, bn=512, decay=1e-6)
-    train_PFA_cifar10_exp_decay('update_pq_2e4_expdecay_96_nogt_test_bs32', 'layer4', max_lr= 2e-4, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1], decay=1e-6)
+    ranks = [64, 32, 20, 16, 8, 4, 2, 1]
+    max_lrs = np.linspace(1e-4, 3e-4, len(ranks))[::-1]
+    train_PFA_cifar10_exp_decay('update_pq_expdecay_96_nogt_diff_lrs_bs32', 'layer2', max_lr= max_lrs, bn=512, ranks=ranks, decay=1e-6)
     # train_PFA_cifar10_exp_decay('update_pq_2e4_expdecay_96_nogt', 'layer3', max_lr= 2e-4, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1][::-1], decay=1e-6)
     # train_PFA_cifar10_exp_decay('update_pq_2e4_expdecay_96_nogt', 'layer2', max_lr= 2e-4, bn=512, ranks=[64, 32, 20, 16, 8, 4, 2, 1][::-1], decay=1e-6)
     
