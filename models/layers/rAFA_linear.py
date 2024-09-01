@@ -51,9 +51,7 @@ class LinearGrad(autograd.Function):
                 grad_output_std = grad_output.std(0)
                 normalized_grad_output = (grad_output - grad_output_mean) / (grad_output_std + 1e-8)
                 grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(normalized_grad_output.T.mm(normalized_grad_output).mm(P))
-                
-           # grad_P = grad_P.t()  #/ torch.linalg.norm(grad_P)
-            P = P / torch.linalg.norm(P, dim = 1)[...,None]+ 1e-8
+
             
         if grad_input_intermediate is not None and context.needs_input_grad[3]:
             grad_Q = grad_input_intermediate.t().mm(input) #/ (grad_output.shape[0])
@@ -136,3 +134,7 @@ class Linear(nn.Linear):
                 grad_input[i] = torch.clamp(grad_input[i], -1, 1)
                 #grad_input[i] = (grad_input[i] / torch.linalg.norm(grad_input[i]))
         return tuple(grad_input)
+    
+    @staticmethod
+    def normalize_P(module, grad_input, grad_output):
+        module.P.data  = module.P / torch.linalg.norm(module.P, dim = 0)
