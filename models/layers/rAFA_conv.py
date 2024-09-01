@@ -41,6 +41,7 @@ class Conv2dGrad(autograd.Function):
             input_size = torch.Size((b, context.rank, h, w))
             
             
+            
             intermediate_grad = torch.nn.grad.conv2d_input(input_size=input_size,
                                                     weight=P,
                                                     grad_output=grad_output,
@@ -57,6 +58,17 @@ class Conv2dGrad(autograd.Function):
                                         dilation=context.dilation,
                                         groups=context.groups)
             
+            
+            grad_out_transpose = grad_output.permute(0, 2, 3, 1)
+            grad_out_transpose = grad_out_transpose.reshape(-1, grad_out_transpose.shape[-1])
+            grad_out_transpose = (grad_out_transpose - grad_out_transpose.mean(0)) / (grad_out_transpose.std(0) + 1e-6)
+            
+            P_s = P.squeeze()
+            grad_P = -1 * (torch.eye(P_s.shape[0]).to(P_s.device) - P_s@P_s.T).mm(grad_out_transpose.T.mm(grad_out_transpose).mm(P_s))[..., None, None]
+            
+            P_s = P_s / torch.linalg.norm(P_s, dim = 1)[...,None]+ 1e-8
+            P = P_s[..., None, None]
+                        
             grad_Q = torch.nn.grad.conv2d_weight(input=input,
                     weight_size=Q.shape,
                     grad_output=intermediate_grad,
@@ -131,7 +143,7 @@ class Conv2d(nn.Conv2d):
         self.options = self.layer_config["options"]
         self.init = self.options["init"]
         
-        self.P = nn.Parameter(torch.Tensor(out_channels, rank, 1, 1), requires_grad=False)
+        self.P = nn.Parameter(torch.Tensor(out_channels, rank, 1, 1), requires_grad=True)
         self.Q = nn.Parameter(torch.Tensor(rank, in_channels, kernel_size, kernel_size), requires_grad=True)
         
         if self.bias is not None:

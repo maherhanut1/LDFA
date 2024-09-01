@@ -12,17 +12,17 @@ class LinearGrad(autograd.Function):
     """
     @staticmethod
     # Same as reference linear function, but with additional weight tensor for backward
-    def forward(context, input, weight, P, Q, bias=None, bias_backward=None):
+    def forward(context, input, weight, P, Q, bias=None, bias_backward=None, gt=None):
         
         output = input.mm(weight.t())
         if bias is not None:
             output += bias.unsqueeze(0).expand_as(output)
-            context.save_for_backward(input, weight, P, Q, bias, bias_backward, output)
+            context.save_for_backward(input, weight, P, Q, bias, bias_backward, output, gt)
         return output
 
     @staticmethod
     def backward(context, grad_output):
-        input, weight, P, Q, bias, bias_backward, output = context.saved_tensors
+        input, weight, P, Q, bias, bias_backward, output, gt = context.saved_tensors
         grad_input = grad_weight = grad_Q = grad_P = grad_bias = grad_bias_backward = grad_input_intermediate = None
         # Gradient input
         if context.needs_input_grad[0]:
@@ -35,22 +35,36 @@ class LinearGrad(autograd.Function):
             grad_weight = grad_output.t().mm(input)
         
         if context.needs_input_grad[2]:
-            grad_P = output.T.mm(output).mm(P)
-           # grad_P = grad_P.t()  #/ torch.linalg.norm(grad_P)
-            P = P / torch.linalg.norm(P, dim = 1)[None,...] + 1e-8
+            
+            
+            
+            if gt is not None:
+                one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
+                one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
+                one_hot_targets_mean = one_hot_targets.mean(0)
+                one_hot_targets_std = one_hot_targets.std(0)
+                normalized_one_hot_targets = (one_hot_targets - one_hot_targets_mean) / (one_hot_targets_std + 1e-8)
+                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(normalized_one_hot_targets.T.mm(normalized_one_hot_targets).mm(P)) #/ grad_output.shape[0]
+                
+            else:
+                grad_output_mean = grad_output.mean(0)
+                grad_output_std = grad_output.std(0)
+                normalized_grad_output = (grad_output - grad_output_mean) / (grad_output_std + 1e-8)
+                grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(normalized_grad_output.T.mm(normalized_grad_output).mm(P))
+
             
         if grad_input_intermediate is not None and context.needs_input_grad[3]:
-            grad_Q = grad_input_intermediate.t().mm(input)
+            grad_Q = grad_input_intermediate.t().mm(input) #/ (grad_output.shape[0])
             
         # Gradient bias
         if bias is not None and context.needs_input_grad[4]:
             grad_bias = grad_output.sum(0).squeeze(0)
 
-        return grad_input, grad_weight, grad_P, grad_Q, grad_bias, grad_bias_backward
+        return grad_input, grad_weight, grad_P, grad_Q, grad_bias, grad_bias_backward, None
 
 
 class Linear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, rank: int, bias: bool = True, layer_config: dict = None) -> None:
+    def __init__(self, in_features: int, out_features: int, rank: int, bias: bool = True, layer_config: dict = None, update_P = True, update_Q = False, requires_gt = False) -> None:
         super(Linear, self).__init__(in_features, out_features, bias)
         self.layer_config = layer_config
 
@@ -68,10 +82,10 @@ class Linear(nn.Linear):
         self.options = self.layer_config["options"]
         self.type = self.layer_config["type"]
         self.init = self.options["init"]
-        
+        self.requires_gt = True if update_P and requires_gt else False
         self.rank = rank
-        self.Q = nn.Parameter(torch.Tensor(self.rank, in_features), requires_grad=True)
-        self.P = nn.Parameter(torch.Tensor(out_features, self.rank), requires_grad=True)
+        self.Q = nn.Parameter(torch.Tensor(self.rank, in_features), requires_grad=update_Q)
+        self.P = nn.Parameter(torch.Tensor(out_features, self.rank), requires_grad=update_P)
         
         if self.bias is not None:
             self.bias_backward = nn.Parameter(torch.Tensor(self.bias.size()), requires_grad=False)
@@ -108,8 +122,8 @@ class Linear(nn.Linear):
             
                     
             
-    def forward(self, x: Tensor) -> Tensor:
-        return LinearGrad.apply(x, self.weight, self.P, self.Q, self.bias, self.bias_backward)
+    def forward(self, x: Tensor, gt=None) -> Tensor:
+        return LinearGrad.apply(x, self.weight, self.P, self.Q, self.bias, self.bias_backward, gt)
 
 
     @staticmethod
@@ -120,3 +134,7 @@ class Linear(nn.Linear):
                 grad_input[i] = torch.clamp(grad_input[i], -1, 1)
                 #grad_input[i] = (grad_input[i] / torch.linalg.norm(grad_input[i]))
         return tuple(grad_input)
+    
+    @staticmethod
+    def normalize_P(module, grad_input, grad_output):
+        module.P.data  = module.P / torch.linalg.norm(module.P, dim = 0)

@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch
 from models.layers.rAFA_linear import Linear as rAFA_Linear
-from models.layers.AFA_linear import Linear as AFALinear
 
     
 class FC(nn.Module):
@@ -20,11 +19,15 @@ class FC(nn.Module):
                                   nn.Linear(hidden_dim, hidden_dim),
                                   nn.BatchNorm1d(hidden_dim),
                                   nn.ReLU(),
+                                  nn.Dropout(p=0.4),
                                   nn.Linear(hidden_dim, num_classes))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, gt = None) -> torch.Tensor:
         b, *_ = x.shape
-        return self.net(x.view(b, -1)), None
+        x = x.view(b, -1)
+        for layer in self.net:
+            x = layer(x, gt) if getattr(layer, 'requires_gt', False) else layer(x)
+        return x, None
     
 
 class FC_rAFA(nn.Module):

@@ -57,7 +57,7 @@ class TrainingManager:
             
             inputs, labels = inputs.to(self.device), labels.to(self.device)
             self._optimizer.zero_grad()
-            outputs, regularization_losses = self._model(inputs)
+            outputs, regularization_losses = self._model(inputs, labels)
             loss = self._criterion(outputs, labels)
             
             if regularization_losses is not None:
@@ -75,17 +75,19 @@ class TrainingManager:
                 self._writer.add_scalar('Loss/train', loss.item(), epoch * len(self._trainloader) + i)
                 self._writer.add_scalar('Accuracy/train', accuracy, epoch * len(self._trainloader) + i)
                 
-                if self._scheduler:
-                    current_lr = self._optimizer.param_groups[0]['lr']
-                    self._writer.add_scalar('LR', current_lr, epoch * len(self._trainloader) + i)
+                
                     
                 
             del inputs
             del outputs
             del labels
            
-            if self._scheduler:
-                self._scheduler.step()
+        if self._scheduler:
+            self._scheduler.step()
+            current_lr = self._optimizer.param_groups[0]['lr']
+            self._writer.add_scalar('LR', current_lr, epoch)
+        
+
                  
         epoch_loss, epoch_accuracy = running_loss / len(self._trainloader), running_acc / len(self._trainloader)
         return epoch_loss, epoch_accuracy

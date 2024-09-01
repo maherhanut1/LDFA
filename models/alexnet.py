@@ -41,13 +41,13 @@ class AlexNet_cifar(nn.Module):
         elif vvs_depth == 3:
             self.vvs = nn.Sequential(
                 nn.Conv2d(bn, 32, kernel_size=kernel_size, padding=kernel_size//2),
-                # nn.BatchNorm2d(32),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.Conv2d(bn, 32, kernel_size=kernel_size, padding=kernel_size//2),
-                # nn.BatchNorm2d(32),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.Conv2d(bn, 32, kernel_size=kernel_size, padding=kernel_size//2),
-                # nn.BatchNorm2d(32),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
             )
         
@@ -60,7 +60,7 @@ class AlexNet_cifar(nn.Module):
             nn.Linear(1024, num_classes)
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, gt=None) -> torch.Tensor:
         x = self.retina(x)
         x = self.vvs(x)
         x = torch.flatten(x, 1)
