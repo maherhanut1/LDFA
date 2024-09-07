@@ -66,8 +66,8 @@ class Conv2dGrad(autograd.Function):
             P_s = P.squeeze()
             grad_P = -1 * (torch.eye(P_s.shape[0]).to(P_s.device) - P_s@P_s.T).mm(grad_out_transpose.T.mm(grad_out_transpose).mm(P_s))[..., None, None]
             
-            P_s = P_s / torch.linalg.norm(P_s, dim = 1)[...,None]+ 1e-8
-            P = P_s[..., None, None]
+            # P_s = P_s / torch.linalg.norm(P_s, dim = 1)[...,None]+ 1e-8
+            # P = P_s[..., None, None]
                         
             grad_Q = torch.nn.grad.conv2d_weight(input=input,
                     weight_size=Q.shape,

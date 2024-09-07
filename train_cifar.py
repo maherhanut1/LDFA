@@ -65,24 +65,26 @@ def train(layer, lr, wd, ranks):
     accuracies = dict()
     session_name = 'kt7tukuytk'
     max_lr = lr #5e-6
-    total_steps = len(trainloader) * epochs
+    total_steps = epochs
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
     for rank in ranks:
         accuracies[rank] = []
         for i in range(num_expirements):
-            model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=total_classes, vvs_depth=vvs_depth, device=device)
-            model.vvs[vvs_idx_dict[vvs_layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
+            model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device)
+            model.vvs[0] = rAFAConv(32, 32, 9, rank=4, padding=9//2)
+            model.vvs[3] = rAFAConv(32, 32, 9, rank=16, padding=9//2)
+            model.vvs[6] = rAFAConv(32, 32, 9, rank=32, padding=9//2)
             model.to(device)
             tm = TrainingManager(model,
                                 trainloader,
                                 testloader,
-                                optim.RMSprop,
+                                optim.Adam,
                                 nn.CrossEntropyLoss(),
                                 epochs,
-                                OneCycleLR,
+                                ExponentialLR,
                                 rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{vvs_layer}/r_{rank}/exp_{i}",
                                 optimizer_params={'lr': max_lr, "weight_decay": wd},
-                                scheduler_params={'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30, 'pct_start': 0.2},#, 'div_factor': 25, ,
+                                scheduler_params={'gamma': 0.95},#, 'div_factor': 25, ,
                                 device=device
                                 )
             val_accuracy = tm.train_model()
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     
     #for layer in ['vvs3']:
     # train('vvs1', 8e-6)
-    train('vvs3', 8e-6, wd = 1e-6, ranks=[10])
+    train('vvs3', 3e-4, wd = 1e-6, ranks=[32])
     # train('vvs3', 1e-5, wd = 1e-6, ranks=[2, 8])
     # train('vvs3', 8e-6)
     # train('vvs2', 8e-6)

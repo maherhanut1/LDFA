@@ -311,18 +311,17 @@ def remove_epochs(path):
 
 def plot_cifar10():
     # session_name = 'rAFA_one_layer_128_x4_batch_norm'
-    session_name = 'update_pq_3e4_expdecay_96_nogt'
+    session_name = 'update_pq_const_all_128x4_1e3_decay_5e4'
     dset= 'cifar10'
-    layer_2 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer2/accuracies.json")
-    layer_3 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer3/accuracies.json")
-    layer_4 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4/accuracies.json")
+    layer_2 = load_dict_from_json(rf"artifacts/{dset}/{session_name}/layer2/accuracies.json")
+    layer_3 = load_dict_from_json(rf"artifacts/{dset}/{session_name}/layer3/accuracies.json")
+    layer_4 = load_dict_from_json(rf"artifacts/{dset}/{session_name}/layer4/accuracies.json")
     
     # layer_4_update_p = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/update_P_512_x4_constraint_all_batch_norm_32_32_32/all/accuracies.json")
     
-    BP_baseline = load_dict_from_json(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/2e4_expdecay_96_BP/all/accuracies.json')
-    const_all = load_dict_from_json(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/update_pq_2e4_expdecay_96_nogt_constraint_norm_32_32_32/all/accuracies.json')
+    # BP_baseline = load_dict_from_json(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/2e4_expdecay_96_BP/all/accuracies.json')
     # plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/128_x4.pdf', extras=[(BP_baseline, 'BP')], lims= [42, 62.5])
-    plot_accuracies_from_dicts({'a2': layer_2, 'a3': layer_3, 'a4': layer_4,}, top_k=10, save_name='plots/512_x4.pdf', extras=[(BP_baseline, 'back_prob', 'black'), (const_all, 'const', 'red')], lims=[42, 62.5])
+    plot_accuracies_from_dicts({'layer4': layer_4, 'layer3': layer_3, 'layer2': layer_2}, top_k=10, save_name='plots/512_x4.pdf', lims=[42, 64]) #extras=[(BP_baseline, 'back_prob', 'black')]
            
 if __name__ == "__main__":
     

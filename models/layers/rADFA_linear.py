@@ -102,9 +102,9 @@ class Linear(nn.Linear):
             grad_dfa = grad_input_intermediate.mm(module.Q)
             
             if module.P.requires_grad:
-                gt = module.gt
-                one_hot_targets = torch.zeros(dfa_grad_output.shape).to(gt.device)
-                one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
+                one_hot_targets = dfa_grad_output
+                # one_hot_targets = torch.zeros(dfa_grad_output.shape).to(gt.device)
+                # one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
                 one_hot_targets_mean = one_hot_targets.mean(0)
                 one_hot_targets_std = one_hot_targets.std(0)
                 normalized_one_hot_targets = (one_hot_targets - one_hot_targets_mean) / (one_hot_targets_std + 1e-8)
