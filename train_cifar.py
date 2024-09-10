@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import os
 
-from models.alexnet import AlexNet_cifar
+from models.alexnet import AlexNet_cifar, AlexNet_AFA
 from utils.model_trainer import TrainingManager
 from models.layers.rAFA_conv import Conv2d as rAFAConv
 import torchvision
@@ -39,13 +39,12 @@ def get_cifar_10_loader(batch_size=32):
     
     return trainloader, testloader
 
-def train(layer, lr, wd, ranks):
+def train(session_name, layer, lr, wd, ranks):
     
     device = 'cuda'
     dset_name = 'cifar10'
     total_classes = 10
     batch_size = 64
-    vvs_depth=3
     trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
     # vvs_idx_dict = {
     #     'vvs1': 0,
@@ -63,18 +62,15 @@ def train(layer, lr, wd, ranks):
     vvs_layer = layer
     num_expirements = 3
     accuracies = dict()
-    session_name = 'kt7tukuytk'
     max_lr = lr #5e-6
-    total_steps = epochs
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
     for rank in ranks:
         accuracies[rank] = []
         for i in range(num_expirements):
-            model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device)
-            model.vvs[0] = rAFAConv(32, 32, 9, rank=4, padding=9//2)
-            model.vvs[3] = rAFAConv(32, 32, 9, rank=16, padding=9//2)
-            model.vvs[6] = rAFAConv(32, 32, 9, rank=32, padding=9//2)
+            model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device)
+            model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
             model.to(device)
+
             tm = TrainingManager(model,
                                 trainloader,
                                 testloader,
@@ -84,7 +80,7 @@ def train(layer, lr, wd, ranks):
                                 ExponentialLR,
                                 rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{vvs_layer}/r_{rank}/exp_{i}",
                                 optimizer_params={'lr': max_lr, "weight_decay": wd},
-                                scheduler_params={'gamma': 0.95},#, 'div_factor': 25, ,
+                                scheduler_params={'gamma': 0.95},
                                 device=device
                                 )
             val_accuracy = tm.train_model()
@@ -98,9 +94,9 @@ def train(layer, lr, wd, ranks):
         
 if __name__ == "__main__":
     
-    #for layer in ['vvs3']:
-    # train('vvs1', 8e-6)
-    train('vvs3', 3e-4, wd = 1e-6, ranks=[32])
-    # train('vvs3', 1e-5, wd = 1e-6, ranks=[2, 8])
-    # train('vvs3', 8e-6)
-    # train('vvs2', 8e-6)
+    # train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs3', 5e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
+    # train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs2', 5e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
+    # train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs1', 5e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
+    train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs3', 2e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
+    train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs2', 2e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
+    

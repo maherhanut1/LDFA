@@ -275,7 +275,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
     device = 'cuda'
     batch_size = 32
     total_classes = 10
-    epochs = 100
+    epochs = 150
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
@@ -298,7 +298,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'gamma': 0.94},  #0.97
+                            scheduler_params={'gamma': 0.97},  #0.97
                             device=device
                             )
             
@@ -404,7 +404,7 @@ def train_PFA_cifar10_BP(session_name, max_lr =8e-6, bn=512, decay=1e-6):
     device = 'cpu'
     batch_size = 64
     total_classes = 10
-    epochs= 80
+    epochs= 150
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
@@ -427,7 +427,7 @@ def train_PFA_cifar10_BP(session_name, max_lr =8e-6, bn=512, decay=1e-6):
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all/r_{bn}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'gamma': 0.96},
+                            scheduler_params={'gamma': 0.97},
                             device=device
                             )
             
@@ -442,38 +442,7 @@ def train_PFA_cifar10_BP(session_name, max_lr =8e-6, bn=512, decay=1e-6):
 
 if __name__ == "__main__":
 
-##################### Final Commands ############################################
-
-########################################### train on cifar10 512, 128 neurons x 4 layers x ranks with batchnorm ###########################################
-    # ranks = [64, 32, 16, 8, 4, 2, 1][::-1]
-    # ranks_4 = [1,2,4,6,8,10][::-1]
-    # train_PFA_cifar10_exp_decay('update_pq_const_all_64x4_1e3_decay_5e4_explr_0.96', 'layer4', max_lr= 1e-3, bn=64, ranks=ranks_4, decay=5e-4, update_p = True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################ FOr testing #########################3
     ranks = [64, 32, 16, 8, 4, 2, 1][::-1]
-    # ranks = [10, 8, 4, 2, 1]
-    train_PFA_cifar10_exp_decay('update_pq_const_all_128x4_9e4_decay_7e4_explr_94', 'layer3', max_lr= 9e-4, bn=128, ranks=ranks, decay=7e-4, update_p = True) #TODO: THIS WAS TO EXPIREMENT WITH GAMME 0.94
+    train_PFA_cifar10_exp_decay('update_pq_const_all_128x4_lr_1e3_decay_5e4_gamma_97', 'layer3', max_lr= 1e-3, bn=128, ranks=ranks, decay=5e-4, update_p = True)
+    train_PFA_cifar10_BP('BP_const_all_128x4_lr_1e3_decay_5e4_gamma_97', max_lr=1e-3, bn=128, decay=5e-4)
+    # train_PFA_cifar10_exp_decay('update_pq_const_all_128x4_lr_1e3_decay_5e4_gamma_97', 'layer4', max_lr= 1e-3, bn=128, ranks=[1, 2, 4, 6, 8, 10], decay=5e-4, update_p = True)

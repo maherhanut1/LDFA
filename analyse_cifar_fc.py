@@ -107,7 +107,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
             if str(r) in skips:
                 continue
             v_acc= sorted(v_acc)[-top_k:]
-            vals_acc.append([acc* 100 for acc in v_acc])
+            vals_acc.append([acc for acc in v_acc])
             ranks.append(int(r))
             # plt.scatter([int(r)]*len(v_acc), v_acc)
             
@@ -321,7 +321,7 @@ def plot_cifar10():
     
     # BP_baseline = load_dict_from_json(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/2e4_expdecay_96_BP/all/accuracies.json')
     # plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/128_x4.pdf', extras=[(BP_baseline, 'BP')], lims= [42, 62.5])
-    plot_accuracies_from_dicts({'layer4': layer_4, 'layer3': layer_3, 'layer2': layer_2}, top_k=10, save_name='plots/512_x4.pdf', lims=[42, 64]) #extras=[(BP_baseline, 'back_prob', 'black')]
+    plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/512_x4.pdf', lims=[0.35, 0.65]) #extras=[(BP_baseline, 'back_prob', 'black')]
            
 if __name__ == "__main__":
     

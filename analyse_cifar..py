@@ -15,8 +15,8 @@ import torch.optim as optim
 from scipy.stats import ttest_rel
 from sklearn.metrics import accuracy_score
 import matplotlib as mpl
-from models.alexnet import AlexNet_cifar
-from models.layers.rAFA_conv import Conv2d as kPFAConv2D
+from models.alexnet import AlexNet_cifar, AlexNet_AFA
+from models.layers.rAFA_conv import Conv2d as AFAConv2d
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
@@ -160,6 +160,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
 def evaluate_model(model, testloader):
     val_predictions = []
     val_targets = []
+    model.eval()
     with torch.no_grad():
         for inputs, labels in testloader:
             inputs, labels = inputs.to('cuda'), labels.to('cuda')
@@ -179,7 +180,7 @@ def get_accuracies_from_training_path(path, model, layer_idx):
     ])
 
     
-    batch_size = 256
+    batch_size = 64
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
     
@@ -189,8 +190,8 @@ def get_accuracies_from_training_path(path, model, layer_idx):
         rank = int(rank_folder.stem.split('_')[-1])
         accuracies[rank] = []
         for exp_folder in tqdm(rank_folder.iterdir()):
-           weights_path = exp_folder / 'checkpoints' / 'best.pth'
-           model.vvs[layer_idx] = kPFAConv2D(32, 32, 9, rank=rank, padding=9//2)
+           weights_path = exp_folder / 'checkpoints' / 'final.pth'
+           model.vvs[layer_idx] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
            model.load_state_dict(torch.load(weights_path))
            model.to('cuda')
            accuracy = evaluate_model(model, testloader)
@@ -211,7 +212,7 @@ def generate_receptive_fields(path, model, layer_idx):
            weights_path = exp_folder / 'checkpoints' / 'best.pth'
            receptive_fields_path = exp_folder / 'retina_rfs'
            receptive_fields_path.mkdir(exist_ok=True)
-           model.vvs[layer_idx] = kPFAConv2D(32, 32, 9, rank=rank, padding=9//2)
+           model.vvs[layer_idx] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
            model.load_state_dict(torch.load(weights_path))
            model.to('cuda')
            retina = model.retina[:-1]
@@ -297,8 +298,8 @@ def remove_epochs(path):
            
 if __name__ == "__main__":
     
-    model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
-    # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/CNN_bn_32/vvs3", model, 4)
+    model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
+    get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/CNN_update_pq_lr_5e4_decay_1e6_gamma_96/vvs3", model, 6)
     # get_accuracies_from_training_path(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_3_vss_layers_clip_grad/vvs_2', model, 2)
     
     # model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
@@ -307,12 +308,12 @@ if __name__ == "__main__":
     
     
     session_name ='update_P_test'
-    vvs_4_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/layer_4/accuracies.json")
+    # vvs_4_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/layer_4/accuracies.json")
     # vvs_4_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/bn_32_3_vss_layers/vvs_4/accuracies.json")
     # vvs_1_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/vvs1/accuracies.json")
     # vvs_2_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/vvs2/accuracies.json")
-    BN = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/BP/accuracies.json")
-    plot_accuracies_from_dicts({'vvs4': vvs_4_dict}, top_k=10, save_name='to_jonathan/update_p_results.pdf')
+    # BN = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/BP/accuracies.json")
+    # plot_accuracies_from_dicts({'vvs4': vvs_4_dict}, top_k=10, save_name='to_jonathan/update_p_results.pdf')
 
 
     # remove_epochs(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_2vss_layers/vvs_2')

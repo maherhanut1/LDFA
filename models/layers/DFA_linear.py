@@ -25,8 +25,7 @@ class Linear(nn.Linear):
         self.init = self.options["init"]
         self.requires_gt = True if update_P and requires_gt else False
         self.rank = rank
-        self.Q = nn.Parameter(torch.Tensor(self.rank, in_features), requires_grad=update_Q)
-        self.P = nn.Parameter(torch.Tensor(10, self.rank), requires_grad=update_P)
+        self.B = nn.Parameter(torch.Tensor(10, in_features), requires_grad=update_Q)
         
         self._loss_module = loss_module
         
@@ -56,8 +55,8 @@ class Linear(nn.Linear):
         # Pytorch Default (Kaiming)
         elif self.init == 'kaiming':
             nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-            nn.init.kaiming_uniform_(self.P, a=math.sqrt(5))
-            nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5), mode='fan_in', nonlinearity='linear')
+            nn.init.kaiming_uniform_(self.B, a=math.sqrt(5))
+       #     nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5), mode='fan_in', nonlinearity='linear')
             # Scaling factor is the standard deviation of Kaiming init.
             if self.bias is not None:
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
@@ -96,25 +95,10 @@ class Linear(nn.Linear):
             return grad_input
         else:
             dfa_grad_output = Ewrapper.get_E()[0]
-            module_inputs = module.inputs
-           
-            grad_input_intermediate = dfa_grad_output.mm(module.P)
-            grad_dfa = grad_input_intermediate.mm(module.Q)
-            
-            if module.P.requires_grad:
-#                one_hot_targets = dfa_grad_output
-                gt = module.gt
-                one_hot_targets = torch.zeros(dfa_grad_output.shape).to(gt.device)
-                one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
-                one_hot_targets_mean = one_hot_targets.mean(0)
-                one_hot_targets_std = one_hot_targets.std(0)
-                normalized_one_hot_targets = (one_hot_targets - one_hot_targets_mean) / (one_hot_targets_std + 1e-8)
-                grad_P = -1 * (torch.eye(module.P.shape[0]).to(module.P.device) - module.P@module.P.T).mm(normalized_one_hot_targets.T.mm(normalized_one_hot_targets).mm(module.P))
-                module.P.grad = grad_P
-            
-            if module.Q.requires_grad:
-                grad_Q = grad_input_intermediate.t().mm(module_inputs)
-                module.Q.grad = grad_Q
+            # module_inputs = module.inputs
+            grad_dfa = dfa_grad_output.mm(module.B)
+
+    
             
             if len(grad_input) == 2:
                 return grad_dfa, grad_input[1]

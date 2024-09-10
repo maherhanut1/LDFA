@@ -12,6 +12,7 @@ import os
 from models.FC import FC, FC_rAFA
 from models.layers.GLobal_e import Ewrapper
 from models.layers.rADFA_linear import Linear as rADFALinear
+from models.layers.DFA_linear import Linear as DFALInear
 from utils.model_trainer import TrainingManager
 
 import torchvision.datasets as datasets
@@ -105,7 +106,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
     device = 'cuda'
     batch_size = 32
     total_classes = 10
-    epochs= 80
+    epochs= 150
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
@@ -119,9 +120,9 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
             criterion = nn.CrossEntropyLoss()
             criterion.register_full_backward_hook(save_out_grad_hook)
             model = FC(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
-            # model.net[LAYER_IDX['layer4']] = rADFALinear(bn,total_classes, rank=rank, loss_module=criterion, update_Q=True, update_P=True, requires_gt=True)
-            model.net[LAYER_IDX['layer3']] = rADFALinear(bn, bn, rank=rank, loss_module=criterion, update_P=True, update_Q=True, requires_gt=True)
-            # model.net[LAYER_IDX['layer2']] = rADFALinear(bn, bn, rank=rank, loss_module=criterion, update_P=True, update_Q=True, requires_gt=True)
+            model.net[LAYER_IDX['layer4']] = DFALInear(bn,total_classes, rank=10, loss_module=criterion, update_Q=True, update_P=True, requires_gt=True)
+            model.net[LAYER_IDX['layer3']] = DFALInear(bn, bn, rank=bn, loss_module=criterion, update_P=True, update_Q=True, requires_gt=True)
+            model.net[LAYER_IDX['layer2']] = DFALInear(bn, bn, rank=bn, loss_module=criterion, update_P=True, update_Q=True, requires_gt=True)
             model = model.to(device)
             tm = TrainingManager(model,
                             trainloader,
@@ -132,7 +133,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'gamma': 0.96},  #0.97
+                            scheduler_params={'gamma': 0.95},  #0.97
                             device=device
                             )
             
@@ -186,7 +187,7 @@ if __name__ == "__main__":
 
     # train_PFA_cifar10_BP('2e4_expdecay_96_BP', max_lr=2e-4, bn=512, decay=1e-6)
     ranks = [64, 32, 20, 16, 8, 4, 2, 1]#[::-1]
-    train_PFA_cifar10_exp_decay('update_pq_2e4_96_use_e_for_last_layer', 'layer4', max_lr= 1.5e-4, bn=512, ranks=ranks, decay=1e-6)
+    train_PFA_cifar10_exp_decay('DFA_test', 'layer4', max_lr= 1e-3, bn=128, ranks=[128], decay=1e-5)
     
     
     
