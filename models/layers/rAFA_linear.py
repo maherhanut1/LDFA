@@ -43,12 +43,12 @@ class LinearGrad(autograd.Function):
                 one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
                 one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
                 one_hot_targets_mean = one_hot_targets.mean(0)
-                normalized_one_hot_targets = (one_hot_targets - one_hot_targets_mean) #/ (one_hot_targets_std + 1e-8)
+                normalized_one_hot_targets = (one_hot_targets - one_hot_targets_mean)# / (one_hot_targets.std(0).max() + 1e-8)
                 grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(normalized_one_hot_targets.T.mm(normalized_one_hot_targets).mm(P)) #/ grad_output.shape[0]
                 
             else:
                 grad_output_mean = grad_output.mean(0)
-                normalized_grad_output = (grad_output - grad_output_mean) #/ (grad_output_std + 1e-8)
+                normalized_grad_output = (grad_output - grad_output_mean) / (grad_output.std(0).max() + 1e-8)
                 grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(normalized_grad_output.T.mm(normalized_grad_output).mm(P)) #/ grad_output.shape[0]
 
             

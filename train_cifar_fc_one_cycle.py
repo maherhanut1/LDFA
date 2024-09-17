@@ -13,6 +13,8 @@ from models.FC import FC, FC_rAFA
 from models.layers.rAFA_linear import Linear as rAFALinear
 from utils.model_trainer import TrainingManager
 
+
+from models.optim.AdeMamix import AdEMAMix
 import torchvision.datasets as datasets
 
 # LAYER_IDX = {
@@ -64,7 +66,7 @@ def get_cifar10_loaders(batch_size=32):
     ])
 
     trainset = datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=1)
+    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 
     testset = datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
@@ -297,7 +299,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
                             epochs,
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
-                            optimizer_params={'lr': max_lr, 'weight_decay': decay},
+                            optimizer_params={'lr': max_lr, 'weight_decay': decay, 'amsgrad': True},
                             scheduler_params={'gamma': 0.97},  #0.97
                             device=device
                             )
@@ -312,67 +314,27 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
         json.dump(all_accuracies, f)
 
 
-def train_PFA_cifar10_no_constraint(session_name, max_lr =8e-6, bn=512, decay=1e-6):
-    
-    device = 'cpu'
-    batch_size = 64
-    total_classes = 10
-    epochs= 50
-    num_expirements = 10
-    session_name = session_name
-    dset_name = 'cifar10'
-    trainloader, testloader = get_cifar10_loaders(batch_size=batch_size)
-    all_accuracies = dict()
-    
-    for rank in [bn]:
-        all_accuracies[rank] = []
-        for i in range(num_expirements):
-            model = FC_rAFA(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes, backward_constraint=bn)
-            
-            
-            model.to(device)
-            max_lr = max_lr
-            tm = TrainingManager(model,
-                            trainloader,
-                            testloader,
-                            optim.RMSprop,
-                            nn.CrossEntropyLoss(),
-                            epochs,
-                            OneCycleLR,
-                            rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all/r_{bn}/exp_{i}",
-                            optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'max_lr': max_lr, 'total_steps': epochs*len(trainloader), 'div_factor': 10, 'final_div_factor': 100, 'pct_start': 0.15},
-                            device=device
-                            )
-            
-            val_accuracy = tm.train_model()
-            all_accuracies[rank].append(val_accuracy)
-            
-    import json
-    
-    
-    with open(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all/accuracies.json', 'w') as f:
-        json.dump(all_accuracies, f)
+
         
-def train_PFA_cifar10_constraint_all(session_name, max_lr=8e-5, bn=512, decay=1e-6):
+def train_PFA_cifar10_constraint_all(session_name, rank, max_lr=8e-5, bn=512, decay=1e-6):
     
     device = 'cuda'
     batch_size = 64
     total_classes = 10
-    epochs= 80
+    epochs= 150
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
     trainloader, testloader = get_cifar10_loaders(batch_size=batch_size)
     all_accuracies = dict()
     
-    for rank in [bn]:
+    for rank in [rank]:
         all_accuracies[rank] = []
         for i in range(num_expirements):
-            model = FC(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
-            model.net[3] = rAFALinear(bn, bn, rank=32, requires_gt=False, update_P=True, update_Q=True)
-            model.net[6] = rAFALinear(bn, bn, rank=32, requires_gt=False, update_P=True, update_Q=True)
-            model.net[10] = rAFALinear(bn, total_classes, rank=32, requires_gt=True, update_P=True, update_Q=True)
+            model = FC_rAFA(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
+            model.net[3] = rAFALinear(bn, bn, rank=rank, requires_gt=False, update_P=True, update_Q=True)
+            model.net[6] = rAFALinear(bn, bn, rank=rank, requires_gt=False, update_P=True, update_Q=True)
+            model.net[10] = rAFALinear(bn, total_classes, rank=min(total_classes, rank), requires_gt=True, update_P=True, update_Q=True)
             
             model.to(device)
             max_lr = max_lr
@@ -383,7 +345,7 @@ def train_PFA_cifar10_constraint_all(session_name, max_lr=8e-5, bn=512, decay=1e
                             nn.CrossEntropyLoss(),
                             epochs,
                             ExponentialLR,
-                            rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all/r_{bn}/exp_{i}",
+                            rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all_{rank}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
                             scheduler_params={'gamma': 0.96},
                             device=device
@@ -401,8 +363,8 @@ def train_PFA_cifar10_constraint_all(session_name, max_lr=8e-5, bn=512, decay=1e
 
 def train_PFA_cifar10_BP(session_name, max_lr =8e-6, bn=512, decay=1e-6):
     
-    device = 'cpu'
-    batch_size = 64
+    device = 'cuda'
+    batch_size = 32
     total_classes = 10
     epochs= 150
     num_expirements = 10
@@ -442,7 +404,22 @@ def train_PFA_cifar10_BP(session_name, max_lr =8e-6, bn=512, decay=1e-6):
 
 if __name__ == "__main__":
 
-    ranks = [64, 32, 16, 8, 4, 2, 1][::-1]
-    train_PFA_cifar10_exp_decay('update_pq_const_all_128x4_lr_1e3_decay_5e4_gamma_97', 'layer3', max_lr= 1e-3, bn=128, ranks=ranks, decay=5e-4, update_p = True)
-    train_PFA_cifar10_BP('BP_const_all_128x4_lr_1e3_decay_5e4_gamma_97', max_lr=1e-3, bn=128, decay=5e-4)
-    # train_PFA_cifar10_exp_decay('update_pq_const_all_128x4_lr_1e3_decay_5e4_gamma_97', 'layer4', max_lr= 1e-3, bn=128, ranks=[1, 2, 4, 6, 8, 10], decay=5e-4, update_p = True)
+    ranks = [32, 16, 8, 4, 2, 1][::-1]
+
+
+
+
+
+
+    ######### 128 x 4 uncomplete tests (params should be near fine for 8 not for lower ....) # optimize per layer per rank
+    # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[1, 2, 3], decay=5e-4, update_p = True)
+    # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[4, 5, 6], decay=5e-4, update_p = True)
+    # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer3', max_lr= 1.7e-3, bn=128, ranks=[1, 2, 3], decay=5e-4, update_p = True)
+    
+    #6e04 decay and 5e-4 lr for no_dropouts_v2
+    train_PFA_cifar10_exp_decay('512x4_no_drop_out_V2_test_normalzing_max_std', 'layer3', max_lr= 5e-4, bn=512, ranks=[32, 16, 8, 4], decay=3e-4, update_p = True)
+    # train_PFA_cifar10_BP('512x4_no_drop_out_V2_BP_with_dropout', max_lr=5e-4, bn=512, decay=1e-6)
+    
+    # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[1, 2, 3, 4, 5, 6], decay=5e-4, update_p = True)
+    # print('5e-4')
+    # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[8], decay=5e-4, update_p = True)

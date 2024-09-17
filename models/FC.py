@@ -47,7 +47,7 @@ class FC_rAFA(nn.Module):
                                   rAFA_Linear(hidden_dim, hidden_dim, update_P=True, update_Q=True, requires_gt=False, rank=hidden_dim),
                                   nn.BatchNorm1d(hidden_dim),
                                   nn.ReLU(),
-                                  nn.Dropout(p=0.3),
+                                  nn.Dropout(p=0.0),
                                   rAFA_Linear(hidden_dim, num_classes, update_P=True, update_Q=True, requires_gt=True, rank=min(hidden_dim, num_classes)))
 
     def forward(self, x: torch.Tensor, gt = None) -> torch.Tensor:

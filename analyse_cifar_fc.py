@@ -17,7 +17,7 @@ from scipy.optimize import curve_fit
 from scipy.stats import ttest_rel
 from sklearn.metrics import accuracy_score
 
-from models.FC import FC
+from models.FC import FC, FC_rAFA
 from models.layers.rAFA_linear import Linear as rAFALinear
 from train_cifar_fc_one_cycle import get_cifar10_loaders, get_cifar100_loaders
 
@@ -136,7 +136,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         for _,v_acc in dictionary.items():
             v_acc= sorted(v_acc)[-top_k:]
             vals_acc.append(v_acc)
-            vals_acc = np.array(vals_acc) * 100
+            vals_acc = np.array(vals_acc)
         vals_acc = np.array(vals_acc)
         mean = vals_acc.mean(1)
         
@@ -224,6 +224,7 @@ def plot_accuracies_from_dicts_subsets(subset_names, bn_dicts, const_dicts, skip
 def evaluate_model(model, testloader):
     val_predictions = []
     val_targets = []
+    model.eval()
     with torch.no_grad():
         for inputs, labels in testloader:
             inputs, labels = inputs.to('cuda'), labels.to('cuda')
@@ -237,7 +238,7 @@ def evaluate_model(model, testloader):
 def get_accuracies_from_training_path(path, model, layer_idx):
     
     # _, testloader = get_cifar10_loaders(batch_size=64)
-    _, testloader = get_cifar100_loaders(batch_size=64, class_limit=50)
+    _, testloader = get_cifar10_loaders(batch_size=64)
 
     path = Path(path)
     accuracies = dict()
@@ -246,7 +247,7 @@ def get_accuracies_from_training_path(path, model, layer_idx):
         accuracies[rank] = []
         for exp_folder in tqdm(rank_folder.iterdir()):
            weights_path = exp_folder / 'checkpoints' / 'best.pth'
-           model.net[layer_idx] = rAFALinear(512, 50, rank=rank)
+           model.net[layer_idx] = rAFALinear(512, 512, rank=rank)
            model.load_state_dict(torch.load(weights_path))
            model.to('cuda')
            model.eval()
@@ -311,47 +312,30 @@ def remove_epochs(path):
 
 def plot_cifar10():
     # session_name = 'rAFA_one_layer_128_x4_batch_norm'
-    session_name = 'update_pq_const_all_128x4_1e3_decay_5e4'
+    session_name = '512x4_no_drop_out_V2'
     dset= 'cifar10'
-    layer_2 = load_dict_from_json(rf"artifacts/{dset}/{session_name}/layer2/accuracies.json")
-    layer_3 = load_dict_from_json(rf"artifacts/{dset}/{session_name}/layer3/accuracies.json")
-    layer_4 = load_dict_from_json(rf"artifacts/{dset}/{session_name}/layer4/accuracies.json")
+    layer_2 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer2/accuracies.json")
+    layer_3 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer3/accuracies.json")
+    layer_4 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4/accuracies.json")
+    # bp = load_dict_from_json(rf"artifacts/{dset}/{session_name}/all/accuracies.json")
     
     # layer_4_update_p = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/update_P_512_x4_constraint_all_batch_norm_32_32_32/all/accuracies.json")
     
-    # BP_baseline = load_dict_from_json(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/2e4_expdecay_96_BP/all/accuracies.json')
+    BP_baseline = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/BP_decay_1e-6_lr_5e-4/accuracies.json")
+    BP_2_baseline = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/BP_with_dropout/accuracies.json")
+    
     # plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/128_x4.pdf', extras=[(BP_baseline, 'BP')], lims= [42, 62.5])
-    plot_accuracies_from_dicts({'layer2': layer_2, 'layer3': layer_3, 'layer4': layer_4}, top_k=10, save_name='plots/512_x4.pdf', lims=[0.35, 0.65]) #extras=[(BP_baseline, 'back_prob', 'black')]
+    # layer_2 = {k:v for k,v in layer_2.items() if int(k) < 10}
+    # layer_3 = {k:v for k,v in layer_3.items() if int(k) < 10}
+    # layer_4['32'] = layer_4['10']
+    layer_3.pop('8')
+    # layer_4.pop('8')
+    layer_2.pop('8')
+    plot_accuracies_from_dicts({'layer1': layer_2, 'layer2': layer_3, 'layer3': layer_4}, top_k=-1, save_name='plots/512_x4.pdf', lims=[0.40, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
            
 if __name__ == "__main__":
     
     plot_cifar10()
     
-    # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=50, device='cuda')
-    # # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar_subsets/rAFA_one_layer_512_x3_subsets_batch_norm/layer4_50", model, 9)
-    
-    # # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/layer3/", model, 4)
-    # # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/layer2/", model, 2)
-    # # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/layer3/", model, 4)
-    # # plot_cifar10()
-
-    # session_name = 'rAFA_one_layer_512_x3_subsets_batch_norm'
-    # dset= 'cifar_subsets'
-    # layer_4_20 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4_20/accuracies.json")
-    # layer_4_50 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4_50/accuracies.json")
-    # layer_4_75 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4_75/accuracies.json")
-    # layer_4_100 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4_100/accuracies.json")
-    
-    # baseline_20 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/BP_20/accuracies.json")
-    # baseline_50 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/BP_50/accuracies.json")
-    # baseline_75 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/BP_75/accuracies.json")
-    # baseline_100 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/BP_100/accuracies.json")
-    # plot_accuracies_from_dicts_subsets(['20', '50', '70', '100'], [baseline_20, baseline_50, baseline_75, baseline_100], [layer_4_20, layer_4_50, layer_4_75, layer_4_100], skips=['256'])
-    
-    # plot_cifar10()
-
-    # # print_acc_table
-    # # x=1
-
-
-    # remove_epochs(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_2vss_layers/vvs_2')
+    # model = FC_rAFA(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
+    # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/512x4_no_drop_out_V2/layer2", model, 3)

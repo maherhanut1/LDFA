@@ -299,7 +299,7 @@ def remove_epochs(path):
 if __name__ == "__main__":
     
     model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
-    get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/CNN_update_pq_lr_5e4_decay_1e6_gamma_96/vvs3", model, 6)
+    # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/CNN_update_pq_lr_5e4_decay_1e6_gamma_96/vvs3", model, 6)
     # get_accuracies_from_training_path(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_3_vss_layers_clip_grad/vvs_2', model, 2)
     
     # model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
@@ -307,13 +307,13 @@ if __name__ == "__main__":
     
     
     
-    session_name ='update_P_test'
-    # vvs_4_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/layer_4/accuracies.json")
-    # vvs_4_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/bn_32_3_vss_layers/vvs_4/accuracies.json")
-    # vvs_1_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/vvs1/accuracies.json")
-    # vvs_2_dict = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/vvs2/accuracies.json")
+    session_name ='CNN_update_pq_lr_5e4_decay_1e6_gamma_96'
+    vvs_3_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs3/accuracies.json")
+    # vvs_3_dict = load_dict_from_json(rf"artifacts/cifar10/bn_32_3_vss_layers/vvs_4/accuracies.json")
+    # vvs_1_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs1/accuracies.json")
+    vvs_2_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs2/accuracies.json")
     # BN = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/BP/accuracies.json")
-    # plot_accuracies_from_dicts({'vvs4': vvs_4_dict}, top_k=10, save_name='to_jonathan/update_p_results.pdf')
+    plot_accuracies_from_dicts({'vvs3': vvs_3_dict, 'vvs2': vvs_2_dict}, top_k=10, save_name='update_p_results.pdf')
 
 
     # remove_epochs(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_2vss_layers/vvs_2')
