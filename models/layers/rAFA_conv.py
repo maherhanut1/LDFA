@@ -63,11 +63,11 @@ class Conv2dGrad(autograd.Function):
             grad_out_transpose = grad_out_transpose.reshape(-1, grad_out_transpose.shape[-1])
             grad_out_transpose = (grad_out_transpose - grad_out_transpose.mean(0)) / (grad_out_transpose.std(0) + 1e-6)
             
-            P_s = P.squeeze()
+            P_s = P.squeeze(-1, -2)
             grad_P = -1 * (torch.eye(P_s.shape[0]).to(P_s.device) - P_s@P_s.T).mm(grad_out_transpose.T.mm(grad_out_transpose).mm(P_s))[..., None, None]
             
-            P_s = P_s / torch.linalg.norm(P_s, dim = 1)[...,None]+ 1e-8
-            P = P_s[..., None, None]
+            # P_s = P_s / torch.linalg.norm(P_s, dim = 1)[...,None]+ 1e-8
+            # P = P_s[..., None, None]
                         
             grad_Q = torch.nn.grad.conv2d_weight(input=input,
                     weight_size=Q.shape,
@@ -179,7 +179,7 @@ class Conv2d(nn.Conv2d):
         else:
             nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
             nn.init.kaiming_uniform_(self.P, a=math.sqrt(5))
-            nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5))
+            nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5), mode='fan_in', nonlinearity='linear')
             # Scaling factor is the standard deviation of Kaiming init.
             self.scaling_factor = 1 / math.sqrt(3 * fan_in)
             if self.bias is not None:
