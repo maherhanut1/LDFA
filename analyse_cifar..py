@@ -18,9 +18,6 @@ import matplotlib as mpl
 from models.alexnet import AlexNet_cifar, AlexNet_AFA
 from models.layers.rAFA_conv import Conv2d as AFAConv2d
 
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-
 def load_dict_from_json(path: Path):
     with open(path, 'r+') as f:
         loaded_file = json.load(f)
@@ -88,13 +85,14 @@ def smooth_data(data, alpha=0.6):
 def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], extras=[], lims=None):
     
     plt.figure(figsize=(10, 5))
-    mpl.style.use('seaborn-whitegrid')
+    # mpl.style.use('seaborn-whitegrid')
     # Font settings
     plt.rc('font', family='Arial', size=12)
     
     max_rank = 0
     #read accuracies for all layers, all ranks
-    blues = plt.cm.Blues(np.linspace(0.4, 1, 3))
+    blues = plt.cm.Blues(np.linspace(0.4, 1, 8))
+    greens = plt.cm.Greens(np.linspace(0.4, 1, 8))
     c_idx = 0
     for k,v in acc_dictionaries.items():
         vals_acc = []
@@ -124,7 +122,10 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         stds = np.array(stds)
         
         # plt.errorbar(ranks, (means - means.min()) / (means.max() - means.min()), yerr=stds*0, label=f'{k}: Mean ± SE', fmt='-o', capsize=5)
-        plt.errorbar(ranks[1:], means[1:], yerr=stds[1:], label=f'{k}: Mean ± STD', fmt='-o', capsize=5, color=blues[c_idx])
+        if c_idx == 0:
+            plt.errorbar(ranks, means, yerr=stds, label=f'{k}: Mean ± STD', fmt='-o', capsize=5, color=blues[4])
+        else:
+            plt.errorbar(ranks, means, yerr=stds, label=f'{k}: Mean ± STD', fmt='-o', capsize=5, color=greens[4])
         c_idx+=1
     
     for dictionary, name in extras:
@@ -148,6 +149,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
     plt.xlabel('Backward Rank', fontsize=18, fontname='Arial')
     plt.ylabel('Accuracy', fontsize=18, fontname='Arial')
     # plt.title('Mean Accuracy and Standard Error over Trials at each Layer', fontsize=14, fontname='Arial')
+    plt.xticks([1, 4, 8, 16, 32])
     plt.xticks(fontsize=15, fontname='Arial')
     plt.yticks(fontsize=15, fontname='Arial')
     if lims is not None:
@@ -171,7 +173,7 @@ def evaluate_model(model, testloader):
     
     return val_accuracy
 
-def get_accuracies_from_training_path(path, model, layer_idx):
+def get_accuracies_from_training_path(path):
     
     transform_test = transforms.Compose([
         transforms.Grayscale(num_output_channels=1),  # Convert Images to Grayscale
@@ -190,8 +192,11 @@ def get_accuracies_from_training_path(path, model, layer_idx):
         rank = int(rank_folder.stem.split('_')[-1])
         accuracies[rank] = []
         for exp_folder in tqdm(rank_folder.iterdir()):
-           weights_path = exp_folder / 'checkpoints' / 'final.pth'
-           model.vvs[layer_idx] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
+           weights_path = exp_folder / 'checkpoints' / 'best.pth'
+           model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=10, device='cuda', constrain=rank)
+        #    model.vvs[0] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
+        #    model.vvs[3] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
+        #    model.vvs[6] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
            model.load_state_dict(torch.load(weights_path))
            model.to('cuda')
            accuracy = evaluate_model(model, testloader)
@@ -283,6 +288,13 @@ def create_image_montage(image_list):
     return montage
 
 
+
+def updateQ_vs_updateQP():
+    
+    P_acc_dict = load_dict_from_json(rf"artifacts/cifar10/constrain_all_update_Q_only/accuracies.json")
+    QP_acc_dict = load_dict_from_json(rf"artifacts/cifar10/constrain_all_update_QP/accuracies.json")
+
+
 def remove_epochs(path):
     
     path = Path(path)
@@ -298,24 +310,27 @@ def remove_epochs(path):
            
 if __name__ == "__main__":
     
-    model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
-    # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/CNN_update_pq_lr_5e4_decay_1e6_gamma_96/vvs3", model, 6)
-    # get_accuracies_from_training_path(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_3_vss_layers_clip_grad/vvs_2', model, 2)
     
-    # model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
-    # generate_receptive_fields(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_3_vss_layers_clip_grad/vvs2', model, layer_idx=2)
+    # updateQ_vs_updateQP()
+        
+    # get_accuracies_from_training_path(rf"artifacts/cifar10/constraint all/constrain_all_update_Q_only")
+    # # get_accuracies_from_training_path(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_3_vss_layers_clip_grad/vvs_2', model, 2)
+    
+    # # model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
+    # # generate_receptive_fields(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_3_vss_layers_clip_grad/vvs2', model, layer_idx=2)
     
     
     
-    session_name ='CNN_update_pq_lr_5e4_decay_1e6_gamma_96'
-    vvs_3_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs3/accuracies.json")
-    # vvs_3_dict = load_dict_from_json(rf"artifacts/cifar10/bn_32_3_vss_layers/vvs_4/accuracies.json")
-    # vvs_1_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs1/accuracies.json")
-    vvs_2_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs2/accuracies.json")
-    # BN = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/BP/accuracies.json")
-    plot_accuracies_from_dicts({'vvs3': vvs_3_dict, 'vvs2': vvs_2_dict}, top_k=10, save_name='update_p_results.pdf')
+    session_name ='constraint_all'
+    Q = load_dict_from_json(rf"artifacts/cifar10/constraint all/constrain_all_update_Q_only/accuracies.json")
+    QP = load_dict_from_json(rf"artifacts/cifar10/constraint all/constrain_all_update_QP/accuracies.json")
+    # # vvs_3_dict = load_dict_from_json(rf"artifacts/cifar10/bn_32_3_vss_layers/vvs_4/accuracies.json")
+    # # vvs_1_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs1/accuracies.json")
+    # vvs_2_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs2/accuracies.json")
+    # # BN = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/BP/accuracies.json")
+    plot_accuracies_from_dicts({'update Q': Q, 'update QP': QP}, top_k=2, save_name='update_p_results.pdf')
 
 
-    # remove_epochs(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_2vss_layers/vvs_2')
+    # # remove_epochs(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_2vss_layers/vvs_2')
     
     

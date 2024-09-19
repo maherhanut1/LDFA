@@ -32,7 +32,7 @@ def get_cifar_10_loader(batch_size=32):
 ])
     
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=1)
 
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=1)
@@ -58,9 +58,9 @@ def train(session_name, layer, lr, wd, ranks):
     }
     
             
-    epochs = 100
+    epochs = 200
     vvs_layer = layer
-    num_expirements = 3
+    num_expirements = 5
     accuracies = dict()
     max_lr = lr #5e-6
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
@@ -68,7 +68,7 @@ def train(session_name, layer, lr, wd, ranks):
         accuracies[rank] = []
         for i in range(num_expirements):
             model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device)
-            model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
+            # model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
             model.to(device)
 
             tm = TrainingManager(model,
@@ -80,7 +80,7 @@ def train(session_name, layer, lr, wd, ranks):
                                 ExponentialLR,
                                 rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{vvs_layer}/r_{rank}/exp_{i}",
                                 optimizer_params={'lr': max_lr, "weight_decay": wd},
-                                scheduler_params={'gamma': 0.95},
+                                scheduler_params={'gamma': 0.98},
                                 device=device
                                 )
             val_accuracy = tm.train_model()
@@ -91,12 +91,112 @@ def train(session_name, layer, lr, wd, ranks):
         json.dump(accuracies, f)
         
         
+
+def train_const_all(session_name, layer, lr, wd, ranks, with_p = True):
+    
+    device = 'cuda'
+    dset_name = 'cifar10'
+    total_classes = 10
+    batch_size = 64
+    trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
+    # vvs_idx_dict = {
+    #     'vvs1': 0,
+    #     'vvs2': 2,
+    #     'vvs3': 4,
+    # }
+    vvs_idx_dict = {
+        'vvs1': 0,
+        'vvs2': 3,
+        'vvs3': 6,
+    }
+    
+
+    epochs = 200
+    vvs_layer = layer
+    num_expirements = 10
+    accuracies = dict()
+    max_lr = lr #5e-6
+    #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
+    for rank in ranks:
+        accuracies[rank] = []
+        for i in range(num_expirements):
+            model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device, constrain = rank, update_p=with_p, update_q=True)
+            # model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
+            model.to(device)
+
+            tm = TrainingManager(model,
+                                trainloader,
+                                testloader,
+                                optim.Adam,
+                                nn.CrossEntropyLoss(),
+                                epochs,
+                                ExponentialLR,
+                                rf"artifacts/{dset_name}/{session_name}/{vvs_layer}/r_{rank}/exp_{i}",
+                                optimizer_params={'lr': max_lr, "weight_decay": wd},
+                                scheduler_params={'gamma': 0.98},
+                                device=device
+                                )
+            val_accuracy = tm.train_model()
+            accuracies[rank].append(val_accuracy)
+                
+    import json
+    with open(rf'artifacts/{dset_name}/{session_name}/{vvs_layer}/accuracies.json', 'w') as f:
+        json.dump(accuracies, f)
+        
+def train_BP(session_name, lr, wd):
+    
+    device = 'cuda'
+    dset_name = 'cifar10'
+    total_classes = 10
+    batch_size = 64
+    trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
+    # vvs_idx_dict = {
+    #     'vvs1': 0,
+    #     'vvs2': 2,
+    #     'vvs3': 4,
+    # }
+    vvs_idx_dict = {
+        'vvs1': 0,
+        'vvs2': 3,
+        'vvs3': 6,
+    }
+    
+
+    epochs = 200
+    num_expirements = 10
+    accuracies = dict()
+    max_lr = lr #5e-6
+    #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
+    accuracies['BP'] = []
+    for i in range(num_expirements):
+        model = AlexNet_cifar(1, bn=32, kernel_size=9, num_classes=total_classes, device=device)
+        # model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
+        model.to(device)
+
+        tm = TrainingManager(model,
+                            trainloader,
+                            testloader,
+                            optim.Adam,
+                            nn.CrossEntropyLoss(),
+                            epochs,
+                            ExponentialLR,
+                            rf"artifacts/{dset_name}/{session_name}/BP/exp_{i}",
+                            optimizer_params={'lr': max_lr, "weight_decay": wd},
+                            scheduler_params={'gamma': 0.98},
+                            device=device
+                            )
+        val_accuracy = tm.train_model()
+        accuracies['BP'].append(val_accuracy)
+                
+    import json
+    with open(rf'artifacts/{dset_name}/{session_name}/accuracies.json', 'w') as f:
+        json.dump(accuracies, f)
+        
+        
+        
         
 if __name__ == "__main__":
     
-    # train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs3', 5e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
-    # train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs2', 5e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
-    # train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs1', 5e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
-    train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs3', 2e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
-    train('CNN_update_pq_lr_5e4_decay_1e6_gamma_96', 'vvs2', 2e-4, wd = 1e-6, ranks=[32, 16, 8, 4, 2, 1])
-    
+    # print('constraint all')
+    # train_const_all('constraint_all_v2', 'constrain_all_update_QP', 4e-4, wd = 2e-5, ranks=[32], with_p=True)
+    train_BP('constraint_all_v2', lr=4e-4, wd=2e-5)

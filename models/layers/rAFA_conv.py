@@ -32,7 +32,6 @@ class Conv2dGrad(autograd.Function):
         input, weight, P, Q, bias, bias_backward = context.saved_tensors
         grad_input = grad_weight = grad_P = grad_Q = grad_bias = grad_bias_backward = None
         
-        grad_input_P = None
         # Gradient input
         if context.needs_input_grad[0]:
             # Use the FA constant weight matrix to compute the gradient
@@ -57,27 +56,7 @@ class Conv2dGrad(autograd.Function):
                                         padding=context.padding,
                                         dilation=context.dilation,
                                         groups=context.groups)
-            
-            
-            grad_out_transpose = grad_output.permute(0, 2, 3, 1)
-            grad_out_transpose = grad_out_transpose.reshape(-1, grad_out_transpose.shape[-1])
-            grad_out_transpose = (grad_out_transpose - grad_out_transpose.mean(0)) / (grad_out_transpose.std(0) + 1e-6)
-            
-            P_s = P.squeeze(-1, -2)
-            grad_P = -1 * (torch.eye(P_s.shape[0]).to(P_s.device) - P_s@P_s.T).mm(grad_out_transpose.T.mm(grad_out_transpose).mm(P_s))[..., None, None]
-            
-            # P_s = P_s / torch.linalg.norm(P_s, dim = 1)[...,None]+ 1e-8
-            # P = P_s[..., None, None]
-                        
-            grad_Q = torch.nn.grad.conv2d_weight(input=input,
-                    weight_size=Q.shape,
-                    grad_output=intermediate_grad,
-                    stride=context.stride,
-                    padding=context.padding,
-                    dilation=context.dilation,
-                    groups=context.groups)
-            
-            
+                
 
         # Gradient weights
         if context.needs_input_grad[1]:
@@ -89,7 +68,27 @@ class Conv2dGrad(autograd.Function):
                                                       padding=context.padding,
                                                       dilation=context.dilation,
                                                       groups=context.groups)
-
+            
+        if context.needs_input_grad[2] and context.needs_input_grad[0]:
+            grad_out_transpose = grad_output.permute(0, 2, 3, 1)
+            grad_out_transpose = grad_out_transpose.reshape(-1, grad_out_transpose.shape[-1])
+            grad_out_transpose = (grad_out_transpose - grad_out_transpose.mean(0)) / (grad_out_transpose.std(0).max() + 1e-6)
+            
+            P_s = P.squeeze(-1, -2)
+            grad_P = -1 * (torch.eye(P_s.shape[0]).to(P_s.device) - P_s@P_s.T).mm(grad_out_transpose.T.mm(grad_out_transpose).mm(P_s))[..., None, None]
+            
+  
+        if context.needs_input_grad[3] and context.needs_input_grad[0]:
+            
+            grad_Q = torch.nn.grad.conv2d_weight(input=input,
+                    weight_size=Q.shape,
+                    grad_output=intermediate_grad,
+                    stride=context.stride,
+                    padding=context.padding,
+                    dilation=context.dilation,
+                    groups=context.groups)
+            
+            
         # Gradient bias
         if bias is not None and context.needs_input_grad[3]:
             grad_bias = grad_output.sum(0).sum(2).sum(1)            
@@ -105,6 +104,8 @@ class Conv2d(nn.Conv2d):
             out_channels: int,
             kernel_size: _size_2_t,
             rank: int,
+            update_p: bool = True,
+            update_q: bool = True,
             stride: _size_2_t = 1,
             padding: Union[str, _size_2_t] = 0,
             dilation: _size_2_t = 1,
@@ -143,8 +144,8 @@ class Conv2d(nn.Conv2d):
         self.options = self.layer_config["options"]
         self.init = self.options["init"]
         
-        self.P = nn.Parameter(torch.Tensor(out_channels, rank, 1, 1), requires_grad=True)
-        self.Q = nn.Parameter(torch.Tensor(rank, in_channels, kernel_size, kernel_size), requires_grad=True)
+        self.P = nn.Parameter(torch.Tensor(out_channels, rank, 1, 1), requires_grad=update_p)
+        self.Q = nn.Parameter(torch.Tensor(rank, in_channels, kernel_size, kernel_size), requires_grad=update_q)
         
         if self.bias is not None:
             self.bias_backward = nn.Parameter(torch.Tensor(self.bias.size()), requires_grad=False)
@@ -159,7 +160,7 @@ class Conv2d(nn.Conv2d):
             self.norm_initial_weights = torch.linalg.norm(self.weight)
         
         
-        # self.register_full_backward_hook(self.gradient_clip)
+        self.register_full_backward_hook(self.gradient_clip)
         #if "gradient_clip" in self.options and self.options["gradient_clip"]:
             # self.register_full_backward_hook(self.gradient_clip)
 
