@@ -198,5 +198,5 @@ def train_BP(session_name, lr, wd):
 if __name__ == "__main__":
     
     # print('constraint all')
-    # train_const_all('constraint_all_v2', 'constrain_all_update_QP', 4e-4, wd = 2e-5, ranks=[32], with_p=True)
-    train_BP('constraint_all_v2', lr=4e-4, wd=2e-5)
+    train_const_all('constraint_all_v2', 'constrain_all_update_QP', 4e-4, wd = 5e-5, ranks=[32], with_p=True)
+    # train_BP('constraint_all_v2', lr=4e-4, wd=2e-5)
