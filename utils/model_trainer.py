@@ -125,19 +125,13 @@ class TrainingManager:
                 self._writer.add_scalar('Accuracy/val', val_accuracy, epoch)
                 self._writer.add_scalar('Loss/epoch', train_loss, epoch)    
                 self._writer.add_scalar('Accuracy/epoch', train_accuracy, epoch)
+            
+                # for param_group in self._optimizer.param_groups:
+                #     param_group['weight_decay'] = param_group['weight_decay']*0.98
                 
             
             print(f"Epoch {epoch+1}/{self._epochs}, Loss: {self._epochs}, Validation Accuracy: {val_accuracy}") #, Learning Rate: {self._scheduler.get_last_lr()[0]}")
             print(f"Epoch {epoch+1}/{self._epochs}, Loss: {self._epochs}, Training Accuracy: {train_accuracy}")#, Learning Rate: {self._scheduler.get_last_lr()[0]}")
-            
-            # if self._scheduler:
-            #     self._scheduler.step()
-
-            # Save the model
-            # if self._model_path and (epoch+1)%20==0:
-            #     torch.save(self._model.state_dict(), self._model_path / f"epoch_{epoch+1}.pth")
-            #     print(f"Model saved checkpoint for epoch {epoch} at {self._model_path}")
-                
                 
         # Save the model
         if self._model_path:

@@ -300,7 +300,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay, 'amsgrad': True},
-                            scheduler_params={'gamma': 0.97},  #0.97
+                            scheduler_params={'gamma': 0.975},  #0.97
                             device=device
                             )
             
@@ -316,10 +316,10 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
 
 
         
-def train_PFA_cifar10_constraint_all(session_name, rank, max_lr=8e-5, bn=512, decay=1e-6):
+def train_PFA_cifar10_constraint_all(session_name, ranks, max_lr=8e-5, bn=512, decay=1e-6):
     
     device = 'cuda'
-    batch_size = 64
+    batch_size = 32
     total_classes = 10
     epochs= 150
     num_expirements = 10
@@ -328,7 +328,7 @@ def train_PFA_cifar10_constraint_all(session_name, rank, max_lr=8e-5, bn=512, de
     trainloader, testloader = get_cifar10_loaders(batch_size=batch_size)
     all_accuracies = dict()
     
-    for rank in [rank]:
+    for rank in ranks:
         all_accuracies[rank] = []
         for i in range(num_expirements):
             model = FC_rAFA(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
@@ -345,9 +345,9 @@ def train_PFA_cifar10_constraint_all(session_name, rank, max_lr=8e-5, bn=512, de
                             nn.CrossEntropyLoss(),
                             epochs,
                             ExponentialLR,
-                            rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all_{rank}/r_{rank}/exp_{i}",
+                            rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/constraint_all/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'gamma': 0.96},
+                            scheduler_params={'gamma': 0.975},
                             device=device
                             )
             
@@ -389,7 +389,7 @@ def train_PFA_cifar10_BP(session_name, max_lr =8e-6, bn=512, decay=1e-6):
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/all/r_{bn}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay},
-                            scheduler_params={'gamma': 0.97},
+                            scheduler_params={'gamma': 0.98},
                             device=device
                             )
             
@@ -404,22 +404,40 @@ def train_PFA_cifar10_BP(session_name, max_lr =8e-6, bn=512, decay=1e-6):
 
 if __name__ == "__main__":
 
-    ranks = [32, 16, 8, 4, 2, 1][::-1]
-
-
-
-
-
-
     ######### 128 x 4 uncomplete tests (params should be near fine for 8 not for lower ....) # optimize per layer per rank
     # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[1, 2, 3], decay=5e-4, update_p = True)
     # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[4, 5, 6], decay=5e-4, update_p = True)
     # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer3', max_lr= 1.7e-3, bn=128, ranks=[1, 2, 3], decay=5e-4, update_p = True)
+    # train_PFA_cifar10_constraint_all('512x4_no_drop_out_V2_const_all', rank=32, max_lr=4e-4, bn=512, decay=6e-4)
     
-    #6e04 decay and 5e-4 lr for no_dropouts_v2
-    train_PFA_cifar10_exp_decay('512x4_no_drop_out_V2_test_normalzing_max_std', 'layer3', max_lr= 5e-4, bn=512, ranks=[32, 16, 8, 4], decay=3e-4, update_p = True)
+    
+    # train_PFA_cifar10_exp_decay('512x4_no_drop_out_V2', 'layer3', max_lr= 4e-4, bn=512, ranks=[512, 256], decay=6e-4, update_p = True)
+    # train_PFA_cifar10_exp_decay('512x4_no_drop_out_V2', 'layer2', max_lr= 4e-4, bn=512, ranks=[512, 256], decay=6e-4, update_p = True)
+    
+    
+    
+    #smaller Nets
+    # train_PFA_cifar10_constraint_all('32x4_no_drop_out_V2_no_constraint', rank=32, max_lr=1.5e-3, bn=32, decay=6e-4)
+    # train_PFA_cifar10_constraint_all('64x4_no_drop_out_V2_no_constraint', rank=64, max_lr=1.5e-3, bn=64, decay=6e-4) 
+    
+    # train_PFA_cifar10_exp_decay('64x4_no_drop_out_V2_BP', 'layer2', max_lr= 1.5e-3, bn=64, ranks=[64], decay=5e-4, update_p = True)
+    # train_PFA_cifar10_exp_decay('128x4_no_drop_out_V2_BP', 'layer2', max_lr= 1.5e-3, bn=128, ranks=[64], decay=5e-4, update_p = True)
+    
+    
     # train_PFA_cifar10_BP('512x4_no_drop_out_V2_BP_with_dropout', max_lr=5e-4, bn=512, decay=1e-6)
     
-    # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[1, 2, 3, 4, 5, 6], decay=5e-4, update_p = True)
-    # print('5e-4')
-    # train_PFA_cifar10_exp_decay('128x4xmulti_optimization', 'layer2', max_lr= 1.7e-3, bn=128, ranks=[8], decay=5e-4, update_p = True)
+    
+    #FInal COnfigs
+    
+    ############################## 512 NEURONS #####################################################
+    
+    
+    train_PFA_cifar10_constraint_all('test', ranks=[64], max_lr=4e-4, bn=512, decay=5e-5)
+    # train_PFA_cifar10_constraint_all('512x4_no_drop_out_V2_const_all', rank=[32], max_lr=4e-4, bn=512, decay=6e-4)
+    
+    
+    # train_PFA_cifar10_exp_decay('512x4_no_drop_out_V2', 'layer2', max_lr= 4e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 8, 10, 16, 32], decay=6e-4, update_p = True)
+    # train_PFA_cifar10_exp_decay('512x4_no_drop_out_V2', 'layer3', max_lr= 4e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 8, 10, 16, 32], decay=6e-4, update_p = True)
+    # train_PFA_cifar10_exp_decay('512x4_no_drop_out_V2', 'layer4', max_lr= 4e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 8, 10], decay=6e-4, update_p = True)
+    
+    # train_PFA_cifar10_constraint_all('512x4_no_drop_out_V2', rank=[16, 8, 4, 2, 1], max_lr=4e-4, bn=512, decay=5e-4)
