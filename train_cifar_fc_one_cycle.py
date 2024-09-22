@@ -189,7 +189,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
     device = 'cuda'
     batch_size = 32
     total_classes = 10
-    epochs = 200
+    epochs = 150
     num_expirements = 10
     session_name = session_name
     dset_name = 'cifar10'
@@ -212,7 +212,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay, 'amsgrad': True},
-                            scheduler_params={'gamma': 0.98},  #0.97
+                            scheduler_params={'gamma': 0.975},  #0.97
                             device=device
                             )
             
@@ -366,4 +366,4 @@ if __name__ == "__main__":
     
     
     
-    train_PFA_cifar10_exp_decay('test_4e4_6e-4', 'layer3', max_lr= 5e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 8, 10, 16, 32][::-1], decay=4e-4, update_p = True)
+    train_PFA_cifar10_exp_decay('512x4_lr_5e4_wd_4e-4_update_QP', 'layer3', max_lr= 5e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 8, 10, 16, 32][::-1], decay=4e-4, update_p = True)
