@@ -366,4 +366,6 @@ if __name__ == "__main__":
     
     
     
-    train_PFA_cifar10_exp_decay('512x4_lr_5e4_wd_4e-4_update_QP', 'layer3', max_lr= 5e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 8, 10, 16, 32][::-1], decay=4e-4, update_p = True)
+    train_PFA_cifar10_exp_decay('512x4_lr_5e4_wd_4e-4_update_QP', 'layer2', max_lr= 5e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 8, 10, 32][::-1], decay=4e-4, update_p = True)
+    
+    #for all constraint try 6e-4 for rte and 4e-4 for decay
