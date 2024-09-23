@@ -111,9 +111,9 @@ def train_const_all(session_name, layer, lr, wd, ranks, with_p = True):
     }
     
 
-    epochs = 200
+    epochs = 250
     vvs_layer = layer
-    num_expirements = 10
+    num_expirements = 5
     accuracies = dict()
     max_lr = lr #5e-6
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
@@ -198,5 +198,6 @@ def train_BP(session_name, lr, wd):
 if __name__ == "__main__":
     
     # print('constraint all')
-    train_const_all('constraint_all_v2', 'constrain_all_update_QP', 4e-4, wd = 5e-5, ranks=[32], with_p=True)
+    # train_const_all('constraint_all_v2', 'constrain_all_update_QP', 3e-4, wd = 5e-5, ranks=[16, 8, 4, 2, 1], with_p=True)
+    train_const_all('constraint_all_v3', 'constrain_all_update_QP', 5e-4, wd = 5e-5, ranks=[32, 16, 8, 4, 2, 1], with_p=True)
     # train_BP('constraint_all_v2', lr=4e-4, wd=2e-5)
