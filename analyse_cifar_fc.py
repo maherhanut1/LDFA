@@ -378,7 +378,7 @@ def plot_width_effect():
 if __name__ == "__main__":
     
     # plot_width_effect()
-    plot_cifar10()
+    # plot_cifar10()
     
-    # model = FC_rAFA(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
+    model = FC_rAFA(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
     # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/512x4_no_drop_out_V2/all_constraint", model, 3)
