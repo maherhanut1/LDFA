@@ -133,7 +133,7 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
                             ExponentialLR,
                             rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{layer}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay, 'amsgrad': True},
-                            scheduler_params={'gamma': 0.98},  #0.97
+                            scheduler_params={'gamma': 0.975},  #0.97
                             device=device
                             )
             

@@ -6,6 +6,7 @@ from torch import Tensor
 from torch import autograd
 from typing import Union
 from torch.nn.common_types import _size_2_t
+from models.layers.GLobal_e import Ewrapper
 
 
 #from biotorch.layers.metrics import compute_matrix_angle
@@ -66,15 +67,14 @@ class Conv2dGrad(autograd.Function):
         # Return the same number of parameters
         return grad_input, grad_weight, grad_bias, None, None, None, None, None
 
-class Conv2d(nn.Conv2d):
+
+class RConv2d(nn.Conv2d):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
             kernel_size: _size_2_t,
             rank: int,
-            out_dim: int,
-            sender_module: nn.Module,
             stride: _size_2_t = 1,
             padding: Union[str, _size_2_t] = 0,
             dilation: _size_2_t = 1,
@@ -84,7 +84,7 @@ class Conv2d(nn.Conv2d):
             layer_config: dict = None
     ):
 
-        super(Conv2d, self).__init__(
+        super(RConv2d, self).__init__(
             in_channels,
             out_channels,
             kernel_size,
@@ -114,13 +114,12 @@ class Conv2d(nn.Conv2d):
         self.dfa_signiture = True
         self.options = self.layer_config["options"]
         self.init = self.options["init"]
-        self.sender_module = sender_module
-        # self.weight_backward = nn.Parameter(torch.Tensor(out_dim, in_channels, kernel_size, kernel_size), requires_grad=False)
-        self.weight_backward = nn.Parameter(torch.Tensor(self.weight.size()), requires_grad=True)
-        self.sender_module.register_full_backward_hook(self.clone_out_grad)
-        self.register_full_backward_hook(self.dfa_backward_hook)
         
-      #  self.R = nn.Parameter(torch.Tensor(rank, in_channels, kernel_size, kernel_size), requires_grad=True)
+  
+        self.P = nn.Parameter(torch.Tensor(32, rank, 1, 1), requires_grad=True)
+        self.Q = nn.Parameter(torch.Tensor(rank, in_channels, kernel_size, kernel_size), requires_grad=True)
+
+        
         
         if self.bias is not None:
             self.bias_backward = nn.Parameter(torch.Tensor(self.bias.size()), requires_grad=False)
@@ -139,6 +138,11 @@ class Conv2d(nn.Conv2d):
 
         if "gradient_clip" in self.options and self.options["gradient_clip"]:
             self.register_backward_hook(self.gradient_clip)
+            
+        
+        self.register_full_backward_hook(self.dfa_backward_hook)
+        # self.register_full_backward_hook(self.dfa_backward_hook)
+        # self.register_full_backward_hook(self.gradient_clip)
 
     def init_parameters(self) -> None:
         fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(self.weight)
@@ -155,16 +159,16 @@ class Conv2d(nn.Conv2d):
         # Pytorch Default (Kaiming)
         else:
             nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-            nn.init.kaiming_uniform_(self.weight_backward, a=math.sqrt(5))
-            # nn.init.kaiming_uniform_(self.R, a=math.sqrt(5))
-            # Scaling factor is the standard deviation of Kaiming init.
+            nn.init.kaiming_uniform_(self.P, a=math.sqrt(5))
+            nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5))
+            
             self.scaling_factor = 1 / math.sqrt(3 * fan_in)
             if self.bias is not None:
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
                 nn.init.uniform_(self.bias, -bound, bound)
                 nn.init.uniform_(self.bias_backward, -bound, bound)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, gt=None) -> Tensor:
         
         with torch.no_grad():
             # Based on "Feedback alignment in deep convolutional networks" (https://arxiv.org/pdf/1812.06488.pdf)
@@ -173,14 +177,12 @@ class Conv2d(nn.Conv2d):
                 self.weight = torch.nn.Parameter(self.weight * self.norm_initial_weights /
                                                  torch.linalg.norm(self.weight))
             
-            self.inputs = x.clone()
-        return Conv2dGrad.apply(x,
-                                self.weight,
-                                self.bias,
-                                self.stride,
-                                self.padding,
-                                self.dilation,
-                                self.groups)
+        self.inputs = x.clone()
+        self.gt = gt.clone() if gt is not None else None
+                    
+        return Conv2dGrad.apply(x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+            
+        
 
     # def compute_alignment(self):
     #     self.alignment = compute_matrix_angle(self.weight_backward, self.weight)
@@ -199,62 +201,6 @@ class Conv2d(nn.Conv2d):
                 grad_input[i] = torch.clamp(grad_input[i], -1, 1)
         return tuple(grad_input)
     
-
-    # @staticmethod
-    # def dfa_backward_hook(module, grad_input, grad_output):
-    #     # If layer don't have grad w.r.t input
-    #     if grad_input[0] is None:
-    #         return grad_input
-    #     else:
-    #         dfa_out_grad = module.sender_module.loss_gradient
-    #         module_inputs = module.inputs
-
-            
-    #         b,c,h,w = module_inputs.shape
-    #         input_size = torch.Size((b, module.rank, h, w))
-            
-    #         # grad_input_B = torch.nn.grad.conv2d_input(input_size=input_size,
-    #         #                                         weight=weight_backward,
-    #         #                                         grad_output=grad_output,
-    #         #                                         stride=context.stride,
-    #         #                                         padding=context.padding,
-    #         #                                         dilation=context.dilation,
-    #         #                                         groups=context.groups)
-            
-    #         grad_input_B = torch.nn.grad.conv2d_input(input_size=input_size,
-    #                                                 weight=module.weight_backward,
-    #                                                 grad_output=dfa_out_grad,
-    #                                                 stride=module.stride,
-    #                                                 padding=0,
-    #                                                 dilation=module.dilation,
-    #                                                 groups=module.groups)
-            
-    #         grad_dfa= torch.nn.grad.conv2d_input(input_size=module_inputs.shape,
-    #                                     weight=module.R,
-    #                                     grad_output=grad_input_B,
-    #                                     stride=module.stride,
-    #                                     padding=module.padding,
-    #                                     dilation=module.dilation,
-    #                                     groups=module.groups)
-            
-    #         grad_R = torch.nn.grad.conv2d_weight(input=module_inputs,
-    #                 weight_size=module.R.shape,
-    #                 grad_output=grad_input_B,
-    #                 stride=module.stride,
-    #                 padding=module.padding,
-    #                 dilation=module.dilation,
-    #                 groups=module.groups)
-            
-    #         module.R.grad = grad_R
-            
-    #         # grad_B = torch.nn.grad.conv2d_weight(input=grad_input_B, weight_size=module.weight_backward.shape, grad_output=out_grad)
-    #         # module.weight_backward.grad = grad_B
-            
-    #         # If no bias term
-    #         if len(grad_input) == 2:
-    #             return grad_dfa, grad_input[1]
-    #         else:
-    #             return (grad_dfa,) +  grad_input[1:]
             
     @staticmethod
     def dfa_backward_hook(module, grad_input, grad_output):
@@ -262,40 +208,51 @@ class Conv2d(nn.Conv2d):
         if grad_input[0] is None:
             return grad_input
         else:
-            dfa_out_grad = module.sender_module.loss_gradient
+            e = Ewrapper.get_E()[0]
             module_inputs = module.inputs
 
             
             b,c,h,w = module_inputs.shape
-            input_size = torch.Size((b, c, h, w))
+            input_size = torch.Size((b, module.rank, h, w))
             
-            grad_dfa = torch.nn.grad.conv2d_input(input_size=input_size,
-                                                    weight=module.weight_backward,
-                                                    grad_output=dfa_out_grad,
-                                                    stride=module.stride,
-                                                    padding=module.padding,
-                                                    dilation=module.dilation,
-                                                    groups=module.groups)
             
-
+            intermediate_grad = torch.nn.grad.conv2d_input(input_size=input_size,
+                                        weight=module.P,
+                                        grad_output=e.reshape(b, 32, 32, 32),
+                                        stride=module.stride,
+                                        padding=0,
+                                        dilation=module.dilation,
+                                        groups=module.groups)
             
-            # grad_dfa= torch.nn.grad.conv2d_input(input_size=module_inputs.shape,
-            #                             weight=module.R,
-            #                             grad_output=grad_input_B,
-            #                             stride=module.stride,
-            #                             padding=module.padding,
-            #                             dilation=module.dilation,
-            #                             groups=module.groups)
             
-            grad_weight_backward = torch.nn.grad.conv2d_weight(input=module_inputs,
-                    weight_size=module.weight_backward.shape,
-                    grad_output=grad_dfa,
+            grad_dfa = torch.nn.grad.conv2d_input(input_size=module_inputs.shape,
+                                        weight=module.Q,
+                                        grad_output=intermediate_grad,
+                                        stride=module.stride,
+                                        padding=module.padding,
+                                        dilation=module.dilation,
+                                        groups=module.groups)
+            
+            
+            P = module.P
+            grad_out_transpose = e.reshape(b, 32, 32, 32).permute(0, 2, 3, 1)
+            grad_out_transpose = grad_out_transpose.reshape(-1, grad_out_transpose.shape[-1])
+            grad_out_transpose = (grad_out_transpose - grad_out_transpose.mean(0)) / (grad_out_transpose.std(0) + 1e-6)
+            
+            P_s = P.squeeze()
+            grad_P = -1 * (torch.eye(P_s.shape[0]).to(P_s.device) - P_s@P_s.T).mm(grad_out_transpose.T.mm(grad_out_transpose).mm(P_s))[..., None, None]
+            
+            grad_Q = torch.nn.grad.conv2d_weight(input=module_inputs,
+                    weight_size=module.Q.shape,
+                    grad_output=intermediate_grad,
                     stride=module.stride,
                     padding=module.padding,
                     dilation=module.dilation,
                     groups=module.groups)
             
-            module.weight_backward.grad = grad_weight_backward
+            module.P.grad = grad_P
+            module.Q.grad = grad_Q
+        
             
             # grad_B = torch.nn.grad.conv2d_weight(input=grad_input_B, weight_size=module.weight_backward.shape, grad_output=out_grad)
             # module.weight_backward.grad = grad_B
@@ -305,8 +262,3 @@ class Conv2d(nn.Conv2d):
                 return grad_dfa, grad_input[1]
             else:
                 return (grad_dfa,) +  grad_input[1:]
-            
-    @staticmethod
-    def clone_out_grad(module, grad_input, grad_output):
-        module.loss_gradient = grad_output[0].clone()
-
