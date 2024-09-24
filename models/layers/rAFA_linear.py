@@ -116,7 +116,7 @@ class Linear(nn.Linear):
             # nn.init.orthogonal_(self.P)
             # nn.init.orthogonal_(self.Q)
             
-            nn.init.kaiming_uniform_(self.P, a=math.sqrt(5), mode='fan_in')
+            nn.init.kaiming_uniform_(self.P, a=math.sqrt(5))
             nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5), mode='fan_in', nonlinearity='linear')
 
             
