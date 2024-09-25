@@ -1,7 +1,6 @@
 import torch.nn as nn
 import torch
 from models.layers.rAFA_linear import Linear as rAFA_Linear
-from models.layers.FA_linear import Linear as FA_linear
 
     
 class FC(nn.Module):
