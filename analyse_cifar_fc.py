@@ -92,7 +92,9 @@ def plot_accuracies_from_dicts2(acc_dictionaries, top_k=None):
 def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], extras=[], lims=None):
     
     plt.figure(figsize=(10, 5))
-    mpl.style.use('seaborn-whitegrid')
+    print(mpl.style.available)
+    mpl.style.use('seaborn-v0_8-whitegrid')
+    
     # Font settings
     plt.rc('font', family='Arial', size=12)
     
@@ -315,39 +317,35 @@ def remove_epochs(path):
             
 
 def plot_cifar10():
-    # session_name = 'rAFA_one_layer_128_x4_batch_norm'
-    session_name = '512x4_no_drop_out_V2'
-    dset= 'cifar10'
-    layer_2 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer2/accuracies.json")
-    layer_3 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer3/accuracies.json")
-    layer_4 = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/layer4/accuracies.json")
-    # bp = load_dict_from_json(rf"artifacts/{dset}/{session_name}/all/accuracies.json")
     
-    # layer_4_update_p = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/update_P_512_x4_constraint_all_batch_norm_32_32_32/all/accuracies.json")
-    layer_2.pop('256')
-    layer_3.pop('256')
-    layer_2.pop('512')
-    layer_3.pop('512')
-    layer_2.pop('128')
-    layer_3.pop('128')
+    layer_2 = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_lr_6e4_wd_4e-4_gamma_975_update_QP/layer2/accuracies.json")
+    layer_3 = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_lr_6e4_wd_4e-4_gamma_975_update_QP/layer3/accuracies.json")
+    layer_4 = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_lr_6e4_wd_4e-4_gamma_975_update_QP/layer4/accuracies.json")
+    BP_baseline = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_no_drop_out_BP_5e-4_decay_4e-4_gamma0.975/all/accuracies.json")
+
+    # smaller_net = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/64x4_no_constraint/accuracies.json")
     layer_2.pop('64')
     layer_3.pop('64')
-    layer_2.pop('7')
-    layer_3.pop('7')
-    layer_2.pop('9')
-    layer_3.pop('9')
-    BP_baseline = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/BP_decay_1e-6_lr_5e-4/accuracies.json")
-    smaller_net = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/64x4_no_constraint/accuracies.json")
-    plot_accuracies_from_dicts({'layer1': layer_2, 'layer2': layer_3, 'layer3': layer_4}, top_k=-1, save_name='plots/512_x4.pdf', lims=[0.40, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
+    plot_accuracies_from_dicts({'layer1': layer_2, 'layer2': layer_3, 'layer3': layer_4}, top_k=10, save_name='plots/512_x4.pdf', lims=[0.43, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
 
 def plot_width_effect():
     
-    net_512_const_all = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/512x4_no_drop_out_V2/all_constraint/accuracies.json")
-    net_64_no_const = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/512x4_no_drop_out_V2/64x4_no_constraint/accuracies.json")
     
+    blues = plt.cm.Blues(np.linspace(0.65, 0.75, 4))
+    greens = plt.cm.Greens(np.linspace(0.65, 0.75, 4))
+    
+    net_512_const_all = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_lr_6e4_wd_4e-4_gamma_975_update_QP_constrain_all/constraint_all/accuracies.json")
+    net_64_no_const = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/64x4_no_drop_out_BP_5e-4_decay_4e-4_gamma0.975/all/accuracies.json")
+    BP_baseline = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_no_drop_out_BP_5e-4_decay_4e-4_gamma0.975/all/accuracies.json")
+    
+    
+    BP = np.array(BP_baseline['512'])
     net_64 = np.array(net_64_no_const['64'])
+    
     const_64 = np.array(net_512_const_all['64'])
     const_32 = np.array(net_512_const_all['32'])
+    const_16 = np.array(net_512_const_all['16'])
+    const_10 = np.array(net_512_const_all['10'])
     
         
     error_bar_style = {
@@ -358,27 +356,34 @@ def plot_width_effect():
 }
     
     fig, ax = plt.subplots()
-    bar_width = 0.25  # Lowering bar width
-
-    bar1 = ax.bar(0, const_64.mean(), yerr=const_64.std(), color='blue', width=bar_width, error_kw=error_bar_style)
-    bar2 = ax.bar(0.3, const_32.mean(), yerr=const_32.std(), color='blue', width=bar_width, error_kw=error_bar_style)
-    bar3 = ax.bar(0.6, net_64.mean(), yerr=net_64.std(), color='green', width=bar_width, error_kw=error_bar_style)
-    ax.legend([bar1, bar3], ['512 neurons', '64 neurons'], loc='upper left')
+    bar_width = 0.18  # Lowering bar width
+    
+    bar0 = ax.bar(0, BP.mean(), yerr=BP.std(), color='black', width=bar_width, error_kw=error_bar_style)
+    bar1 = ax.bar(0.2, const_64.mean(), yerr=const_64.std(), color=blues[0], width=bar_width, error_kw=error_bar_style)
+    bar2 = ax.bar(0.4, const_32.mean(), yerr=const_32.std(), color=blues[1], width=bar_width, error_kw=error_bar_style)
+    bar3 = ax.bar(0.6, const_16.mean(), yerr=const_16.std(), color=blues[2], width=bar_width, error_kw=error_bar_style)
+    bar4 = ax.bar(0.8, const_10.mean(), yerr=const_10.std(), color=blues[3], width=bar_width, error_kw=error_bar_style)
+    bar5 = ax.bar(1.0, net_64.mean(), yerr=net_64.std(), color=greens[[0]], width=bar_width, error_kw=error_bar_style)
+    
+    ax.legend([bar0, bar1, bar5], ['512 neurons', '512 neurons', '64 neurons'], loc='upper left')
 
     
     ax.set_ylim([0.52, None])
     ax.set_ylabel('Accuracy')
-    ax.set_xticks([0., 0.3, 0.6])
-    ax.set_xticklabels(['rank 32', 'rank 64', 'no constraint'])
+    ax.set_xticks([0., 0.2, 0.4, 0.6, 0.8, 1.])
+    ax.set_xticklabels(['BP', 'rank 64', 'rank 32', 'rank 16', 'rank 10', '64 neurons'])
     plt.tight_layout()
     plt.savefig('plots/width_effect.pdf')
     plt.show()
+    plt.close()
     
            
 if __name__ == "__main__":
     
-    # plot_width_effect()
-    # plot_cifar10()
+    plot_width_effect()
+    plot_cifar10()
     
-    model = FC_rAFA(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
+    
+    # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
+    # # model = FC_rAFA(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
     # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/512x4_no_drop_out_V2/all_constraint", model, 3)
