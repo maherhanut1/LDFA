@@ -31,64 +31,6 @@ def load_dict_from_json(path: Path):
     return loaded_file
 
 
-def fit_exp(x_points, y_points):
-    def exp_func(x, a, b):
-        return a * np.exp(b * x)
-
-    # Fit the model to the data
-    params, covariance = curve_fit(exp_func, x_points, y_points, sigma=1e-3)
-    a, b = params
-    return a, b
-
-def _get_acc_array(v, top_k=None):
-    vals_acc = []
-    for _,v_acc in v.items():
-        if top_k is not None:
-            v_acc= sorted(v_acc)[-top_k:]
-        vals_acc.append(v_acc)
-    return np.array(vals_acc) 
-    
-def plot_accuracies_from_dicts2(acc_dictionaries, top_k=None):
-    plt.figure(figsize=(8, 5))
-    
-    for k,v in acc_dictionaries.items():
-        
-        vals_acc = _get_acc_array(v, top_k=20)    
-        ranks = [int(rank) for rank,_ in v.items()]
-        means = vals_acc.mean(1)
-        stds = vals_acc.std(1) / np.sqrt(vals_acc.shape[1])
-        p_vals = []
-        for i in range(vals_acc.shape[0] - 1):
-            _, p = ttest_rel(vals_acc[i, :], vals_acc[i+1, :])
-            p_vals.append(p)
-        
-        paired_sorted = sorted(zip(ranks, means, stds, p_vals))
-        ranks, means, stds, p_vals = zip(*paired_sorted)
-        plt.bar(ranks, means, yerr=stds, capsize=5, color='skyblue', alpha=0.7, error_kw={'capthick': 2}, label='Mean ± STD')
-
-        # Adding labels and title
-        plt.xlabel('Time Point', fontsize=12, fontname='Arial')
-        plt.ylabel('Mean Value', fontsize=12, fontname='Arial')
-        plt.title(f'Bar Plot of Means at Each Time Point, {k}', fontsize=14, fontname='Arial')
-        plt.xticks(ranks, fontsize=10, fontname='Arial')
-        plt.yticks(fontsize=10, fontname='Arial')
-        plt.legend(fontsize=10)
-
-        # Calculate p-values between consecutive time points and annotate
-        for i in range(len(means)-1):
-            # Annotation for p-values on the plot
-            p = p_vals[i]
-            plt.text((ranks[i]+ranks[i+1])/2, max(means[i], means[i+1]), f'p={p:.5f}',
-                    horizontalalignment='center', color='black')
-
-        plt.tight_layout()
-        # Save the plot with high resolution
-        plt.savefig('bar_plot_means.png', format='png', dpi=300)
-        # Show the plot
-        plt.show()
-        
-    
-
 def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], extras=[], lims=None):
     
     plt.figure(figsize=(10, 5))
@@ -130,7 +72,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         stds = np.array(stds)
         
         # plt.errorbar(ranks, (means - means.min()) / (means.max() - means.min()), yerr=stds*0, label=f'{k}: Mean ± SE', fmt='-o', capsize=5)
-        plt.errorbar(ranks, means, yerr=stds, label=f'{k}: Mean ± STD', fmt='-o', capsize=5, color=blues[c_idx])
+        plt.errorbar(ranks, means, yerr=stds, label=f'{k}: Mean ± STD', fmt='-o', capsize=5, color=blues[-2])
         c_idx+=1
     
     for dictionary, name, color in extras:
@@ -145,7 +87,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         plt.plot([1,max_rank], [mean, mean], linestyle='-.', linewidth=2, color=color)
         std = vals_acc.std(1)
         
-        plt.errorbar([16], [mean],yerr=[std], fmt='-.', capsize=5,
+        plt.errorbar([5], [mean],yerr=[std], fmt='-.', capsize=5,
         capthick=2, ecolor=color, marker='s', 
         markersize=7, linestyle='-.', linewidth=2, label=f'{name}: Mean ± STD', color=color)
         
@@ -173,7 +115,7 @@ def plot_accuracies_from_dicts_subsets(subset_names, bn_dicts, const_dicts, skip
             
             
     plt.figure(figsize=(10, 5))
-    mpl.style.use('seaborn-whitegrid')
+    mpl.style.use('seaborn-v0_8-whitegrid')
     # Font settings
     plt.rc('font', family='Arial', size=12)
     
@@ -220,7 +162,7 @@ def plot_accuracies_from_dicts_subsets(subset_names, bn_dicts, const_dicts, skip
     # if lims is not None:
     #     plt.ylim(lims)
     plt.legend(fontsize=18)
-    plt.savefig(rf"to_jonathan/subsets.pdf")
+    # plt.savefig(rf"to_jonathan/subsets.pdf")
     plt.show()
 
 def evaluate_model(model, testloader):
@@ -303,18 +245,18 @@ def create_image_montage(image_list):
 
     return montage
 
-
-def remove_epochs(path):
+def plot_cifar_subsets():
     
-    path = Path(path)
-    for rank_folder in path.iterdir():
-        if rank_folder.is_dir():
-            for exp_folder in tqdm(rank_folder.iterdir()):
-                weights_path = exp_folder / 'checkpoints'
-                for file in weights_path.iterdir():
-                    if 'final' not in file.name:
-                        file.unlink()
-            
+    bp_20 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/20/BP/accuracies.json")
+    bp_40 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/40/BP/accuracies.json")
+    bp_100 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/100/BP/accuracies.json")
+    
+    layer2_20 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/20/layer4/accuracies.json")
+    layer2_40 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/40/layer4/accuracies.json")
+    layer2_100 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/100/layer4/accuracies.json")
+
+
+    plot_accuracies_from_dicts_subsets(subset_names=[20, 40, 100], bn_dicts=[bp_20, bp_40, bp_100], const_dicts=[layer2_20, layer2_40, layer2_100], skips=[])
 
 def plot_cifar10():
     
@@ -327,6 +269,16 @@ def plot_cifar10():
     layer_2.pop('64')
     layer_3.pop('64')
     plot_accuracies_from_dicts({'layer1': layer_2, 'layer2': layer_3, 'layer3': layer_4}, top_k=10, save_name='plots/512_x4.pdf', lims=[0.43, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
+
+
+def plot_DFA():
+    
+    DFA = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_DFA_lr_5e-4_decay_4e-4_gamma_975/layer4/accuracies.json")
+    BP_baseline = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_no_drop_out_BP_5e-4_decay_4e-4_gamma0.975/all/accuracies.json")
+
+
+    plot_accuracies_from_dicts({'DFA': DFA}, top_k=10, save_name='plots/512_x4_DFA.pdf', lims=[0.3, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
+
 
 def plot_width_effect():
     
@@ -355,33 +307,34 @@ def plot_width_effect():
     'ecolor': 'black'  # Color of the error bars
 }
     
-    fig, ax = plt.subplots()
-    bar_width = 0.18  # Lowering bar width
-    
+    fig, ax = plt.subplots(figsize=(11,7))
+    bar_width = 0.37  # Lowering bar width
+    space = 0.4
     bar0 = ax.bar(0, BP.mean(), yerr=BP.std(), color='black', width=bar_width, error_kw=error_bar_style)
-    bar1 = ax.bar(0.2, const_64.mean(), yerr=const_64.std(), color=blues[0], width=bar_width, error_kw=error_bar_style)
-    bar2 = ax.bar(0.4, const_32.mean(), yerr=const_32.std(), color=blues[1], width=bar_width, error_kw=error_bar_style)
-    bar3 = ax.bar(0.6, const_16.mean(), yerr=const_16.std(), color=blues[2], width=bar_width, error_kw=error_bar_style)
-    bar4 = ax.bar(0.8, const_10.mean(), yerr=const_10.std(), color=blues[3], width=bar_width, error_kw=error_bar_style)
-    bar5 = ax.bar(1.0, net_64.mean(), yerr=net_64.std(), color=greens[[0]], width=bar_width, error_kw=error_bar_style)
+    bar1 = ax.bar(space * 1, const_64.mean(), yerr=const_64.std(), color=blues[0], width=bar_width, error_kw=error_bar_style)
+    bar2 = ax.bar(space * 2, const_32.mean(), yerr=const_32.std(), color=blues[1], width=bar_width, error_kw=error_bar_style)
+    bar3 = ax.bar(space * 3, const_16.mean(), yerr=const_16.std(), color=blues[2], width=bar_width, error_kw=error_bar_style)
+    bar4 = ax.bar(space * 4, const_10.mean(), yerr=const_10.std(), color=blues[3], width=bar_width, error_kw=error_bar_style)
+    bar5 = ax.bar(space * 5, net_64.mean(), yerr=net_64.std(), color=greens[[0]], width=bar_width, error_kw=error_bar_style)
     
-    ax.legend([bar0, bar1, bar5], ['512 neurons', '512 neurons', '64 neurons'], loc='upper left')
+    ax.legend([bar0, bar1, bar5], ['512 neurons', '512 neurons', '64 neurons'], loc='upper right', fontsize=14)
 
     
-    ax.set_ylim([0.52, None])
-    ax.set_ylabel('Accuracy')
-    ax.set_xticks([0., 0.2, 0.4, 0.6, 0.8, 1.])
-    ax.set_xticklabels(['BP', 'rank 64', 'rank 32', 'rank 16', 'rank 10', '64 neurons'])
-    plt.tight_layout()
+    ax.set_ylim([0.55, 0.65])
+    ax.set_ylabel('Accuracy', fontsize=18)
+    ax.set_xticks([space * i for i in range(6)])
+    ax.set_xticklabels(['BP', 'rank 64', 'rank 32', 'rank 16', 'rank 10', '64 neurons'], fontsize=15)
+    # plt.tight_layout()
     plt.savefig('plots/width_effect.pdf')
     plt.show()
     plt.close()
     
            
 if __name__ == "__main__":
-    
-    plot_width_effect()
-    plot_cifar10()
+    # plot_DFA()
+    plot_cifar_subsets()
+    # plot_width_effect()
+    # plot_cifar10()
     
     
     # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')

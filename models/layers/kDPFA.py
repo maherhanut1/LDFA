@@ -142,7 +142,7 @@ class RConv2d(nn.Conv2d):
         
         self.register_full_backward_hook(self.dfa_backward_hook)
         # self.register_full_backward_hook(self.dfa_backward_hook)
-        # self.register_full_backward_hook(self.gradient_clip)
+        self.register_full_backward_hook(self.gradient_clip)
 
     def init_parameters(self) -> None:
         fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(self.weight)
@@ -160,7 +160,7 @@ class RConv2d(nn.Conv2d):
         else:
             nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
             nn.init.kaiming_uniform_(self.P, a=math.sqrt(5))
-            nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5))
+            nn.init.kaiming_uniform_(self.Q, a=math.sqrt(5), mode='fan_in', nonlinearity='linear')
             
             self.scaling_factor = 1 / math.sqrt(3 * fan_in)
             if self.bias is not None:

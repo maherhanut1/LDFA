@@ -6,6 +6,7 @@ from torch import Tensor
 from torch import autograd
 from typing import Union
 from torch.nn.common_types import _size_2_t
+import torch.nn.functional as F
 
 
 #from biotorch.layers.metrics import compute_matrix_angle
@@ -90,7 +91,7 @@ class Conv2dGrad(autograd.Function):
             
             
         # Gradient bias
-        if bias is not None and context.needs_input_grad[3]:
+        if bias is not None and context.needs_input_grad[4]:
             grad_bias = grad_output.sum(0).sum(2).sum(1)            
 
 
@@ -214,6 +215,6 @@ class Conv2d(nn.Conv2d):
         grad_input = list(grad_input)
         for i in range(len(grad_input)):
             if grad_input[i] is not None:
-                #grad_input[i] = torch.clamp(grad_input[i], -1, 1)
-                grad_input[i] = (grad_input[i] / torch.linalg.norm(grad_input[i]))
+                grad_input[i] = torch.clamp(grad_input[i], -1, 1)
+                # grad_input[i] = (grad_input[i] / torch.linalg.norm(grad_input[i] + 1e-6))
         return tuple(grad_input)

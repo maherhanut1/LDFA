@@ -215,11 +215,11 @@ def generate_receptive_fields(path, model, layer_idx):
         if not rank_folder.is_dir():
             continue
         rank = int(rank_folder.stem.split('_')[-1])
-        for exp_folder in tqdm(rank_folder.iterdir()):
+        for exp_folder in tqdm(list(rank_folder.iterdir())[::-1]):
            weights_path = exp_folder / 'checkpoints' / 'best.pth'
            receptive_fields_path = exp_folder / 'retina_rfs'
            receptive_fields_path.mkdir(exist_ok=True)
-           model.vvs[layer_idx] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
+           model.vvs[0] = rADFAConv(4, 32, 9, rank=rank, padding=9//2)
            model.load_state_dict(torch.load(weights_path))
            model.to('cuda')
            retina = model.retina[:-1]
@@ -230,10 +230,10 @@ def generate_receptive_fields(path, model, layer_idx):
 def get_rfs(retina):
     
     filters = []
-    for i in range(32):
-        img = torch.zeros((1,1, 32, 32), requires_grad=True, device='cuda')
+    for i in range(4):
+        img = torch.normal(0, 0.01, (1,1, 32, 32), requires_grad=True, device='cuda')
         sgd_optimizer = optim.SGD([img], lr=1)
-        for _ in range(10):
+        for _ in range(100):
             sgd_optimizer.zero_grad()
             output = retina(img)
             l = -1 * output[:,i, 16, 16].mean()
@@ -317,20 +317,10 @@ if __name__ == "__main__":
         
     # get_accuracies_from_training_path(rf"artifacts/cifar10/constraint all/")
     
-    # # model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
-    # # generate_receptive_fields(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_3_vss_layers_clip_grad/vvs2', model, layer_idx=2)
-    
-    
-    
-    session_name ='constraint_all'
-    Q = load_dict_from_json(rf"artifacts/cifar10/constraint all/constrain_all_update_Q_only/accuracies.json")
-    QP = load_dict_from_json(rf"artifacts/cifar10/constraint all/constrain_all_update_QP/accuracies.json")
-    BP = load_dict_from_json(rf'artifacts/cifar10/constraint all/BP/accuracies.json')
-    # # vvs_3_dict = load_dict_from_json(rf"artifacts/cifar10/bn_32_3_vss_layers/vvs_4/accuracies.json")
-    # # vvs_1_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs1/accuracies.json")
-    # vvs_2_dict = load_dict_from_json(rf"artifacts/cifar10/{session_name}/vvs2/accuracies.json")
-    # # BN = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/{session_name}/BP/accuracies.json")
-    plot_accuracies_from_dicts({'update Q': Q, 'update QP': QP}, top_k=2, save_name='update_p_results.pdf', extras=[(BP, 'BP')])
+    from models.layers.kDPFA import RConv2d as rADFAConv
+    model = AlexNet_cifar(1, kernel_size=9, bn = 4, num_classes=10, device='cuda')
+    model.vvs[0] = rADFAConv(4, 32, kernel_size=9, rank=32, padding=9//2)
+    generate_receptive_fields(r'artifacts/cifar10/kt7tukuytk/vvs2/', model, layer_idx=3)
 
 
     # # remove_epochs(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_2vss_layers/vvs_2')

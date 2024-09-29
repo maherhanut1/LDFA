@@ -2,6 +2,8 @@ import math
 import torch
 import torch.nn as nn
 from torch import Tensor
+import torch.nn.functional as F
+
 from models.layers.GLobal_e import Ewrapper
 
 class Linear(nn.Linear):
@@ -26,7 +28,7 @@ class Linear(nn.Linear):
         self.requires_gt = True if update_P and requires_gt else False
         self.rank = rank
         self.Q = nn.Parameter(torch.Tensor(self.rank, in_features), requires_grad=update_Q)
-        self.P = nn.Parameter(torch.Tensor(10, self.rank), requires_grad=update_P)
+        self.P = nn.Parameter(torch.Tensor(512, self.rank), requires_grad=update_P)
         
         self._loss_module = loss_module
         
@@ -37,6 +39,7 @@ class Linear(nn.Linear):
             self.bias_backward = None
 
         self.init_parameters()
+        # self.register_forward_pre_hook(self.normalize_P)
         self.register_full_backward_hook(self.DFA_backward_hook)
         # self.register_full_backward_hook(self.gradient_clip)
         
@@ -85,8 +88,8 @@ class Linear(nn.Linear):
         return tuple(grad_input)
     
     @staticmethod
-    def normalize_P(module, grad_input, grad_output):
-        module.P.data  = module.P / torch.linalg.norm(module.P, dim = 0)
+    def normalize_P(module, grad_input):
+        module.P.data = F.normalize(module.P, p=2, dim=1)
         
     
     @staticmethod
@@ -103,9 +106,10 @@ class Linear(nn.Linear):
             
             if module.P.requires_grad:
 #                one_hot_targets = dfa_grad_output
-                gt = module.gt
-                one_hot_targets = torch.zeros(dfa_grad_output.shape).to(gt.device)
-                one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
+                # gt = module.gt
+                # one_hot_targets = torch.zeros(dfa_grad_output.shape).to(gt.device)
+                # one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
+                one_hot_targets = dfa_grad_output
                 one_hot_targets_mean = one_hot_targets.mean(0)
                 one_hot_targets_std = one_hot_targets.std(0)
                 normalized_one_hot_targets = (one_hot_targets - one_hot_targets_mean) / (one_hot_targets_std + 1e-8)
