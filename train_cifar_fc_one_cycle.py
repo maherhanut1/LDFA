@@ -116,7 +116,9 @@ def train_PFA_cifar100_subsets(session_name, layer, max_lr =1e-4, bn=512, ranks 
         all_accuracies[rank] = []
         for i in range(num_expirements):
             model = FC_rAFA(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
-            model.net[LAYER_IDX[layer]] = rAFALinear(bn, bn, rank=rank, requires_gt=False, update_P=True, update_Q=True) if layer != 'layer4' else rAFALinear(bn,total_classes, rank=min(rank,total_classes), requires_gt=True, update_P=True, update_Q=True)
+            model.net[LAYER_IDX['layer2']] = rAFALinear(bn, bn, rank=rank, requires_gt=False, update_P=True, update_Q=True)
+            model.net[LAYER_IDX['layer3']] = rAFALinear(bn, bn, rank=rank, requires_gt=False, update_P=True, update_Q=True)
+            model.net[LAYER_IDX['layer4']] = rAFALinear(bn, bn, rank=min(rank, class_limit), requires_gt=True, update_P=True, update_Q=True)
             max_lr = max_lr
             model = model.to(device)
             tm = TrainingManager(model,
@@ -371,18 +373,14 @@ if __name__ == "__main__":
     
     #for all constraint try 6e-4 for rte and 4e-4 for decay
     
-    train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer2', max_lr=6e-4, bn=512, ranks=[1, 2, 4, 8, 16, 32, 42, 50, 64, 128], decay= 4e-4, class_limit=50, gamma=0.975)
-    train_PFA_cifar100_subsets_BP('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', max_lr=6e-4, bn=512, decay=4e-4, class_limit=50)
-    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer4', max_lr=6e-4, bn=512, ranks=[1, 2, 4, 8, 10, 12, 14, 16, 18, 20], decay= 4e-4, class_limit=20, gamma=0.975)
-    # train_PFA_cifar100_subsets_BP('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', max_lr=6e-4, bn=512, decay=4e-4, class_limit=20)
+    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer2', max_lr=6e-4, bn=512, ranks=[1, 2, 4, 8, 16, 32, 42, 50, 64, 128], decay= 4e-4, class_limit=50, gamma=0.975)
+    # train_PFA_cifar100_subsets_BP('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', max_lr=6e-4, bn=512, decay=4e-4, class_limit=50)
     
     
-    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer2', max_lr=6e-4, bn=512, ranks=[1, 2, 4, 8, 16, 28, 32, 36, 40, 64], decay= 4e-4, class_limit=40, gamma=0.975)
-    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer4', max_lr=6e-4, bn=512, ranks=[1, 2, 4, 8, 16, 28, 32, 36, 40], decay= 4e-4, class_limit=40, gamma=0.975)
-    # train_PFA_cifar100_subsets_BP('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', max_lr=6e-4, bn=512, decay=4e-4, class_limit=40)
+
     
-    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer2', max_lr=6e-4, bn=512, ranks=[1, 2, 4, 8, 16, 32, 64, 80, 86, 100, 128], decay= 4e-4, class_limit=100, gamma=0.975)
-    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer4', max_lr=6e-4, bn=512, ranks=[1, 2, 4, 8, 16, 32, 64, 80, 86, 100], decay= 4e-4, class_limit=100, gamma=0.975)
+    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer2', max_lr=6e-4, bn=512, ranks=[8, 16, 32, 64, 80, 86, 100, 128], decay= 4e-4, class_limit=100, gamma=0.975)
+    train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='Constraint_all', max_lr=6e-4, bn=512, ranks=[1, 4, 8, 16, 32, 42, 50, 64], decay= 4e-4, class_limit=50, gamma=0.975)
     # train_PFA_cifar100_subsets_BP('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', max_lr=6e-4, bn=512, decay=4e-4, class_limit=100)
     
     
