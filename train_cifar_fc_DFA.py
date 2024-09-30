@@ -106,8 +106,8 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
     device = 'cuda'
     batch_size = 32
     total_classes = 10
-    epochs= 200
-    num_expirements = 10
+    epochs= 160
+    num_expirements = 5
     session_name = session_name
     dset_name = 'cifar10'
     trainloader, testloader = get_cifar10_loaders(batch_size=batch_size)
@@ -118,11 +118,10 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
         all_accuracies[rank] = []
         for i in range(num_expirements):
             criterion = nn.CrossEntropyLoss()
-            criterion.register_full_backward_hook(save_out_grad_hook)
-            model = FC(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
-            model.net[LAYER_IDX['layer4']] = DFALInear(bn,total_classes, rank=min(10, rank), loss_module=criterion, update_Q=True, update_P=True, requires_gt=True)
-            model.net[LAYER_IDX['layer3']] = DFALInear(bn, bn, rank=rank, loss_module=criterion, update_P=True, update_Q=True, requires_gt=True)
-            model.net[LAYER_IDX['layer2']] = DFALInear(bn, bn, rank=rank, loss_module=criterion, update_P=True, update_Q=True, requires_gt=True)
+            model = FC_rAFA(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
+            model.net[-1].register_full_backward_hook(save_out_grad_hook)
+            model.net[LAYER_IDX['layer3']] = DFALInear(bn, bn, rank=rank, loss_module=criterion, update_P=True, update_Q=True, requires_gt=False)
+            model.net[LAYER_IDX['layer2']] = DFALInear(bn, bn, rank=rank, loss_module=criterion, update_P=True, update_Q=True, requires_gt=False)
             model = model.to(device)
             tm = TrainingManager(model,
                             trainloader,
@@ -150,4 +149,4 @@ def train_PFA_cifar10_exp_decay(session_name, layer, max_lr =1e-4, bn=512, ranks
 
 if __name__ == "__main__":
     # train_PFA_cifar10_exp_decay('DFA_V1', 'layer4', max_lr= 4e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], decay=5e-4)
-    train_PFA_cifar10_exp_decay('DFA_V1', 'layer4', max_lr= 5e-4, bn=512, ranks=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][::-1], decay=7e-4)
+    train_PFA_cifar10_exp_decay('DFA_from_layer_3_lr_6e4_wd_4e4', 'layer4', max_lr= 6e-4, bn=512, ranks=[32, 16, 10, 8, 6, 4, 2, 1], decay=4e-4)
