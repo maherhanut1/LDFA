@@ -39,18 +39,13 @@ def get_cifar_10_loader(batch_size=32):
     
     return trainloader, testloader
 
-def train(session_name, layer, lr, wd, ranks):
+def train(session_name, layer, lr, wd, ranks, gamma):
     
     device = 'cuda'
     dset_name = 'cifar10'
     total_classes = 10
     batch_size = 64
     trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
-    # vvs_idx_dict = {
-    #     'vvs1': 0,
-    #     'vvs2': 2,
-    #     'vvs3': 4,
-    # }
     vvs_idx_dict = {
         'vvs1': 0,
         'vvs2': 3,
@@ -58,7 +53,7 @@ def train(session_name, layer, lr, wd, ranks):
     }
     
             
-    epochs = 200
+    epochs = 160
     vvs_layer = layer
     num_expirements = 5
     accuracies = dict()
@@ -67,8 +62,8 @@ def train(session_name, layer, lr, wd, ranks):
     for rank in ranks:
         accuracies[rank] = []
         for i in range(num_expirements):
-            model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device)
-            # model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
+            model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device, update_p=True, update_q=True)
+            model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2, update_p=True, update_q=True)
             model.to(device)
 
             tm = TrainingManager(model,
@@ -78,16 +73,16 @@ def train(session_name, layer, lr, wd, ranks):
                                 nn.CrossEntropyLoss(),
                                 epochs,
                                 ExponentialLR,
-                                rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{vvs_layer}/r_{rank}/exp_{i}",
+                                rf"artifacts/{dset_name}/{session_name}/{vvs_layer}/r_{rank}/exp_{i}",
                                 optimizer_params={'lr': max_lr, "weight_decay": wd},
-                                scheduler_params={'gamma': 0.98},
+                                scheduler_params={'gamma': gamma},
                                 device=device
                                 )
             val_accuracy = tm.train_model()
             accuracies[rank].append(val_accuracy)
                 
     import json
-    with open(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{vvs_layer}/accuracies.json', 'w') as f:
+    with open(rf'artifacts/{dset_name}/{session_name}/{vvs_layer}/accuracies.json', 'w') as f:
         json.dump(accuracies, f)
         
         
@@ -143,26 +138,15 @@ def train_const_all(session_name, layer, lr, wd, ranks, with_p = True):
     with open(rf'artifacts/{dset_name}/{session_name}/{vvs_layer}/accuracies.json', 'w') as f:
         json.dump(accuracies, f)
         
-def train_BP(session_name, lr, wd):
+def train_BP(session_name, lr, wd, gamma):
     
     device = 'cuda'
     dset_name = 'cifar10'
     total_classes = 10
     batch_size = 64
     trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
-    # vvs_idx_dict = {
-    #     'vvs1': 0,
-    #     'vvs2': 2,
-    #     'vvs3': 4,
-    # }
-    vvs_idx_dict = {
-        'vvs1': 0,
-        'vvs2': 3,
-        'vvs3': 6,
-    }
-    
 
-    epochs = 200
+    epochs = 160
     num_expirements = 10
     accuracies = dict()
     max_lr = lr #5e-6
@@ -182,14 +166,14 @@ def train_BP(session_name, lr, wd):
                             ExponentialLR,
                             rf"artifacts/{dset_name}/{session_name}/BP/exp_{i}",
                             optimizer_params={'lr': max_lr, "weight_decay": wd},
-                            scheduler_params={'gamma': 0.98},
+                            scheduler_params={'gamma': gamma},
                             device=device
                             )
         val_accuracy = tm.train_model()
         accuracies['BP'].append(val_accuracy)
                 
     import json
-    with open(rf'artifacts/{dset_name}/{session_name}/accuracies.json', 'w') as f:
+    with open(rf'artifacts/{dset_name}/{session_name}/BP/accuracies.json', 'w') as f:
         json.dump(accuracies, f)
         
         
@@ -198,6 +182,9 @@ def train_BP(session_name, lr, wd):
 if __name__ == "__main__":
     
     # print('constraint all')
-    # train_const_all('constraint_all_v2', 'constrain_all_update_QP', 3e-4, wd = 5e-5, ranks=[16, 8, 4, 2, 1], with_p=True)
-    train_const_all('constraint_all_v3', 'constrain_all_update_QP', 5e-4, wd = 5e-5, ranks=[32, 16, 8, 4, 2, 1], with_p=True)
-    # train_BP('constraint_all_v2', lr=4e-4, wd=2e-5)
+    
+    # train_const_all('constraint_all_v3', 'constrain_all_update_QP', 5e-4, wd = 5e-5, ranks=[32, 16, 8, 4, 2, 1], with_p=True)
+    
+    
+    # train('Retina_model_constrain_retina_only_lr_5e4_wd_5e5_gamma_975', 'vvs1', lr=5e-4, wd=5e-5, ranks=[32, 16, 8, 4], gamma=0.975)
+    train_BP('Retina_model_constrain_retina_only_lr_5e4_wd_5e5_gamma_975', lr=5e-4, wd=5e-5, gamma=0.975)
