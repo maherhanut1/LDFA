@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import os
 
-from models.alexnet import AlexNet_cifar
+from models.alexnet import AlexNet_cifar, AlexNet_AFA
 from utils.model_trainer import TrainingManager
 from models.layers.kDPFA import RConv2d as rADFAConv
 import torchvision
@@ -51,13 +51,8 @@ def train(layer, lr, wd, ranks):
     dset_name = 'cifar10'
     total_classes = 10
     batch_size = 64
-    vvs_depth=3
     trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
-    # vvs_idx_dict = {
-    #     'vvs1': 0,
-    #     'vvs2': 2,
-    #     'vvs3': 4,
-    # }
+
     vvs_idx_dict = {
         'vvs1': 0,
         'vvs2': 3,
@@ -65,11 +60,11 @@ def train(layer, lr, wd, ranks):
     }
     
             
-    epochs = 200
+    epochs = 50
     vvs_layer = layer
-    num_expirements = 3
+    num_expirements = 1
     accuracies = dict()
-    session_name = 'kt7tukuytk'
+    session_name = 'CNN_bn_4_dRAF_le_5e4_wd_1e4_gamma_975'
     max_lr = lr #5e-6
     total_steps = epochs
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
@@ -78,26 +73,23 @@ def train(layer, lr, wd, ranks):
         for i in range(num_expirements):
             criterion = nn.CrossEntropyLoss()
             # criterion.register_full_backward_hook(save_out_grad_hook)
-            model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device)
-            model.vvs[0] = rADFAConv(32, 32, kernel_size=9, rank=rank, padding=9//2)
-            model.vvs[3] = rADFAConv(32, 32, kernel_size=9, rank=rank, padding=9//2)
-            # model.vvs[6] = rADFAConv(32, 32, kernel_size=9, rank=rank, padding=9//2)
-
-            # model.vvs[1] = rADFAConv(32, 32, 9, rank=4, padding=9//2, out_dim=10)
-            # model.vvs[2] = rADFAConv(32, 32, 9, rank=4, padding=9//2, out_dim=10)
             
-            model.vvs[7].register_full_backward_hook(save_out_grad_hook)
+            model = AlexNet_AFA(1, kernel_size=9, bn = 4, num_classes=total_classes, device=device, update_p=True, update_q=True)
+            model.vvs[0] = rADFAConv(4, 32, kernel_size=9, rank=rank, padding=9//2)
+            # model.vvs[3] = rADFAConv(32, 32, kernel_size=9, rank=rank, padding=9//2)
+            model.vvs[-1].register_full_backward_hook(save_out_grad_hook)
+            
             model.to(device)
             tm = TrainingManager(model,
                                 trainloader,
                                 testloader,
-                                optim.Adam,
+                                optim.RMSprop,
                                 criterion,
                                 epochs,
                                 ExponentialLR,
                                 rf"artifacts/{dset_name}/{session_name}/{vvs_layer}/r_{rank}/exp_{i}",
                                 optimizer_params={'lr': max_lr, "weight_decay": wd},
-                                scheduler_params={'gamma': 0.99},#, 'div_factor': 25, ,
+                                scheduler_params={'gamma': 0.985},#, 'div_factor': 25, ,
                                 device=device
                                 )
             val_accuracy = tm.train_model()
@@ -113,7 +105,7 @@ if __name__ == "__main__":
     
     #for layer in ['vvs3']:
     # train('vvs1', 8e-6)
-    train('vvs2', 1e-3, wd = 1e-5, ranks=[32])
+    train('vvs1', 1e-4, wd = 1e-4, ranks=[32, 4, 1])
     # train('vvs3', 1e-5, wd = 1e-6, ranks=[2, 8])
     # train('vvs3', 8e-6)
     # train('vvs2', 8e-6)

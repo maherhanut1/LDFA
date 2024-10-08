@@ -237,7 +237,7 @@ class RConv2d(nn.Conv2d):
             P = module.P
             grad_out_transpose = e.reshape(b, 32, 32, 32).permute(0, 2, 3, 1)
             grad_out_transpose = grad_out_transpose.reshape(-1, grad_out_transpose.shape[-1])
-            grad_out_transpose = (grad_out_transpose - grad_out_transpose.mean(0)) / (grad_out_transpose.std(0) + 1e-6)
+            grad_out_transpose = (grad_out_transpose - grad_out_transpose.mean(0)) / (grad_out_transpose.std(0).max() + 1e-6)
             
             P_s = P.squeeze()
             grad_P = -1 * (torch.eye(P_s.shape[0]).to(P_s.device) - P_s@P_s.T).mm(grad_out_transpose.T.mm(grad_out_transpose).mm(P_s))[..., None, None]
