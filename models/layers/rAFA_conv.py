@@ -47,13 +47,13 @@ class Conv2dGrad(autograd.Function):
                                                     grad_output=grad_output,
                                                     stride=context.stride,
                                                     padding=0,
-                                                    dilation=context.dilation,
-                                                    groups=context.groups)
+                                                    dilation=1,
+                                                    groups=1)
             
             grad_input = torch.nn.grad.conv2d_input(input_size=input.shape,
                                         weight=Q,
                                         grad_output=intermediate_grad,
-                                        stride=context.stride,
+                                        stride=1,
                                         padding=context.padding,
                                         dilation=context.dilation,
                                         groups=context.groups)
@@ -84,7 +84,7 @@ class Conv2dGrad(autograd.Function):
             grad_Q = torch.nn.grad.conv2d_weight(input=input,
                     weight_size=Q.shape,
                     grad_output=intermediate_grad,
-                    stride=context.stride,
+                    stride=1,
                     padding=context.padding,
                     dilation=context.dilation,
                     groups=context.groups)
