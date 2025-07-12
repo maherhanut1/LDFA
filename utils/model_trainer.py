@@ -100,7 +100,7 @@ class TrainingManager:
         with torch.no_grad():
             for inputs, labels in self._testloader:
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs, _ = self._model(inputs)
+                outputs, _ = self._model(inputs, labels)
                 val_predictions.extend(torch.argmax(outputs, dim=1).cpu().numpy())
                 val_targets.extend(labels.cpu().numpy())
         val_accuracy = accuracy_score(val_targets, val_predictions)

@@ -20,6 +20,7 @@ from sklearn.metrics import accuracy_score
 from models.FC import FC, FC_rAFA
 from models.layers.rAFA_linear import Linear as rAFALinear
 from train_cifar_fc_one_cycle import get_cifar10_loaders, get_cifar100_loaders
+from models.RAF_ViT import RafViT
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
@@ -87,7 +88,7 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         plt.plot([1,max_rank], [mean, mean], linestyle='-.', linewidth=2, color=color)
         std = vals_acc.std(1)
         
-        plt.errorbar([5], [mean],yerr=[std], fmt='-.', capsize=5,
+        plt.errorbar([16], [mean],yerr=[std], fmt='-.', capsize=5,
         capthick=2, ecolor=color, marker='s', 
         markersize=7, linestyle='-.', linewidth=2, label=f'{name}: Mean ± STD', color=color)
         
@@ -100,6 +101,8 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
     plt.yticks(fontsize=15, fontname='Arial')
     if lims is not None:
         plt.ylim(lims)
+    
+    plt.xlim(0)
     plt.legend(fontsize=18)
     plt.savefig(save_name)
     plt.show()
@@ -172,7 +175,7 @@ def evaluate_model(model, testloader):
     with torch.no_grad():
         for inputs, labels in testloader:
             inputs, labels = inputs.to('cuda'), labels.to('cuda')
-            outputs, _ = model(inputs)
+            outputs, _ = model(inputs, labels)
             val_predictions.extend(torch.argmax(outputs, dim=1).cpu().numpy())
             val_targets.extend(labels.cpu().numpy())
         val_accuracy = accuracy_score(val_targets, val_predictions)
@@ -201,6 +204,28 @@ def get_accuracies_from_training_path(path, model, layer_idx):
            model.eval()
            accuracy = evaluate_model(model, testloader)
            accuracies[rank].append(accuracy)
+    with open(path / 'accuracies.json', 'w') as f:
+        json.dump(accuracies, f)
+
+
+def get_accuracies_from_training_path_vit(path):
+    
+    # _, testloader = get_cifar10_loaders(batch_size=64)
+    _, testloader = get_cifar10_loaders(batch_size=64)
+
+    path = Path(path)
+    accuracies = dict()
+    for rank_folder in path.iterdir():
+        rank = int(rank_folder.stem.split('_')[-1])
+        accuracies[rank] = []
+        for exp_folder in tqdm(rank_folder.iterdir()):
+            weights_path = exp_folder / 'checkpoints' / 'best.pth'
+            model = RafViT(3, 10, 32, 8, hidden=384, mlp_hidden=384, dropout=0.1, rank=rank)
+            model.load_state_dict(torch.load(weights_path), strict=False)
+            model.to('cuda')
+            model.eval()
+            accuracy = evaluate_model(model, testloader)
+            accuracies[rank].append(accuracy)
     with open(path / 'accuracies.json', 'w') as f:
         json.dump(accuracies, f)
         
@@ -271,6 +296,15 @@ def plot_cifar10():
     plot_accuracies_from_dicts({'layer1': layer_2, 'layer2': layer_3, 'layer3': layer_4}, top_k=10, save_name='plots/512_x4.pdf', lims=[0.43, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
 
 
+def plot_Vit():
+    
+    all = load_dict_from_json(rf"/home/maherhanut/Documents/AFA/artifacts/cifar10/RAFVIT_3e-4_DECAY_1e-4/raf/accuracies.json")
+    all.pop('64')
+    BP_baseline = load_dict_from_json(rf"/home/maherhanut/Documents/AFA/artifacts/cifar10/RAFVIT_3e-4_DECAY_1e-4/bp/accuracies.json")
+    plot_accuracies_from_dicts({'LDFA': all}, top_k=5, save_name='plots/vit.pdf', lims=[0.44, 0.75], extras=[(BP_baseline, 'BP', 'black')])
+
+
+
 def plot_DFA():
     
     DFA = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_DFA_lr_5e-4_decay_4e-4_gamma_975/layer4/accuracies.json")
@@ -332,11 +366,10 @@ def plot_width_effect():
            
 if __name__ == "__main__":
     # plot_DFA()
-    plot_cifar_subsets()
+    # plot_cifar_subsets()
     # plot_width_effect()
     # plot_cifar10()
     
+    plot_Vit()
     
-    # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
-    # # model = FC_rAFA(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
-    # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/512x4_no_drop_out_V2/all_constraint", model, 3)
+    get_accuracies_from_training_path_vit(rf"/home/maherhanut/Documents/AFA/artifacts/cifar10/RAFVIT_3e-4_DECAY_1e-4/raf")
