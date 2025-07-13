@@ -103,13 +103,3 @@ class RafViT(nn.Module):
         out = x.unfold(2, self.patch_size, self.patch_size).unfold(3, self.patch_size, self.patch_size).permute(0,2,3,4,5,1)
         out = out.reshape(x.size(0), self.patch**2 ,-1)
         return out
-
-
-if __name__ == "__main__":
-    b,c,h,w = 4, 3, 32, 32
-    x = torch.randn(b, c, h, w)
-    net = ViT(in_c=c, num_classes= 10, img_size=h, patch=8, dropout=0.1, num_layers=7, hidden=384, head=12, mlp_hidden=384, is_cls_token=False)
-    # out = net(x)
-    # out.mean().backward()
-    # torchsummary.summary(net, (c,h,w))
-    # print(out.shape)

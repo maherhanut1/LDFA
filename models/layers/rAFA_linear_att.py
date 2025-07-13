@@ -43,8 +43,8 @@ class LinearGrad(autograd.Function):
             
             
             if gt is not None:
-                
-                grad_P = grad_weight.matmul(Q.t())
+                raise ValueError
+                # grad_P = grad_weight.matmul(Q.t())
                 # one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
                 # one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
                 # one_hot_targets_mean = one_hot_targets.mean(0)
@@ -56,22 +56,31 @@ class LinearGrad(autograd.Function):
                 # indices = torch.randperm(grad_output.size(0))[:sample_size]
                 # sampled_grad_output = grad_output# grad_output[indices]
                 
-                # std_scalar = sampled_grad_output.std(dim=0).max().item() + 1e-8
-                # grad_output_mean = sampled_grad_output.mean(dim=0)
-                # normalized_grad_output = (sampled_grad_output - grad_output_mean) / std_scalar
-                # yp = normalized_grad_output.mm(P) 
-                # grad_P = P.mm(yp.t()).mm(yp) - normalized_grad_output.t().mm(yp)
+                                
+                # # std_scalar = sampled_grad_output.std(dim=0).max().item() + 1e-8
+                # # grad_output_mean = sampled_grad_output.mean(dim=0)
+                # # normalized_grad_output = (sampled_grad_output - grad_output_mean) / std_scalar
+                # # yp = normalized_grad_output.mm(P) 
+                # # grad_P = P.mm(yp.t()).mm(yp) - normalized_grad_output.t().mm(yp)
                 
-                grad_P = grad_weight.matmul(Q.t())
+                # grad_P = grad_weight.matmul(Q.t())
                 
-                # grad_output_mean = grad_output.mean(0)
-                # normalized_grad_output = (grad_output - grad_output_mean) / (grad_output.std(0).max() + 1e-8)
-                # # grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T) @ (normalized_grad_output.T @ (normalized_grad_output) @ (P))
-                # yp = (normalized_grad_output) @ (P)
-                # pyp = P @ yp.T
-                # b = pyp @ yp
-                # a = normalized_grad_output.T @ yp
-                # grad_P = (b - a)
+                # # grad_output_mean = grad_output.mean(0)
+                # # normalized_grad_output = (grad_output - grad_output_mean) / (grad_output.std(0).max() + 1e-8)
+                # # # grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T) @ (normalized_grad_output.T @ (normalized_grad_output) @ (P))
+                # # yp = (normalized_grad_output) @ (P)
+                # # pyp = P @ yp.T
+                # # b = pyp @ yp
+                # # a = normalized_grad_output.T @ yp
+                # # grad_P = (b - a)
+                
+                std_max = 1e-10 #((grad_output**2).mean(0).max() + 1e-8)
+                yp = grad_input_intermediate.reshape(-1, grad_input_intermediate.shape[-1]) #(normalized_grad_output) @ (P)
+                pyp = P @ yp.T
+                b = pyp @ yp
+                a = grad_output.T @ yp
+                grad_P = (b - a) / std_max
+                
 
             
         if grad_input_intermediate is not None and context.needs_input_grad[3]:

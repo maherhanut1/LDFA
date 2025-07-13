@@ -30,7 +30,7 @@ class TrainingManager:
         self._epochs = epochs
         self.device = device
         
-        if scheduler:
+        if scheduler: 
             self._scheduler = scheduler(self._optimizer, **scheduler_params)
         else:
             self._scheduler = None
