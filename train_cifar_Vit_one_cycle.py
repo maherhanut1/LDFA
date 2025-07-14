@@ -12,6 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from models.ViT import ViT
 from models.RAF_ViT import RafViT
+from models.RAF_ViT_v2 import RafViTV2
 from models.FC import FC_rAFA
 from models.layers.rAFA_linear_att import Linear as rAFALinear
 # from utils.model_trainer import TrainingManager
@@ -87,7 +88,7 @@ def get_cifar100_loaders(batch_size=32, class_limit=1000):
     return trainloader, testloader
     
 
-def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr =8e-6, bn=512, decay=1e-6):
+def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr =8e-6, bn=512, decay=1e-6):
     
     device = 'cuda'
     batch_size = 128
@@ -102,7 +103,20 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr =8e-6, bn
     for rank in ranks:
         all_accuracies[rank] = []
         for i in range(num_expirements):
-            model = class_type(3, 10, 32, 8, hidden=384, mlp_hidden=384, dropout=0.1)
+            # model = class_type(3, 10, 32, 8, hidden=384, mlp_hidden=384, dropout=0.1, rank=rank)
+            model = RafViTV2(
+                    image_size=32,
+                    patch_size=4,
+                    num_classes=10,
+                    dim=384,
+                    depth=6,
+                    heads=8,
+                    mlp_dim=384,
+                    dropout=0.1,
+                    emb_dropout=0.1,
+                    rank=10,
+                )
+            # model = torch.compile(model)
             # model = FC_rAFA()
                 
             model.to(device)
@@ -121,7 +135,7 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr =8e-6, bn
             
             # Create separate optimizers
             optimizer = optim.AdamW(other_params, lr=max_lr, weight_decay=decay)
-            p_optimizer = optim.AdamW(p_params, lr=1.5*max_lr, weight_decay=5e-4)
+            p_optimizer = optim.AdamW(p_params, lr=1e-3, weight_decay=1e-4)
             
             # Log parameter counts for debugging
             total_p_params = sum(p.numel() for p in p_params)
@@ -176,9 +190,9 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr =8e-6, bn
                 
                 # Update learning rate
                     scheduler.step()
-                    p_scheduler.step()
+                    # p_scheduler.step()
 
-                # p_scheduler.step()
+                p_scheduler.step()
                 current_lr = optimizer.param_groups[0]['lr']
                 current_p_lr = p_optimizer.param_groups[0]['lr']
                 writer.add_scalar('LR', current_lr, epoch)
@@ -242,4 +256,4 @@ if __name__ == "__main__":
     decays = [1e-4]
     
     
-    train_PFA_cifar10_gen(RafViT, f'RAFVIT_rank_16', max_lr=8e-4, bn=512, decay=5e-5, ranks=[10])
+    train_PFA_cifar10_gen(RafViTV2, f'RAFVIT_rank_16', max_lr=5e-4, bn=512, decay=5e-5, ranks=[1024])

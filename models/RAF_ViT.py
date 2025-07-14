@@ -11,10 +11,10 @@ class TransformerEncoder(nn.Module):
         self.msa = MultiHeadSelfAttention(feats, head=head, dropout=dropout, rank=rank)
         self.la2 = nn.LayerNorm(feats)
         self.mlp = nn.Sequential(
-            rAFA_Linear(feats, mlp_hidden, rank=10, update_P=True, update_Q=True),
+            rAFA_Linear(feats, mlp_hidden, rank=rank, update_P=True, update_Q=True),
             nn.GELU(),
             nn.Dropout(dropout),
-            rAFA_Linear(mlp_hidden, feats,rank=10, update_P=True, update_Q=True),
+            rAFA_Linear(mlp_hidden, feats,rank=rank, update_P=True, update_Q=True),
             nn.GELU(),
             nn.Dropout(dropout),
         )
