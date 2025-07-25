@@ -91,7 +91,7 @@ def get_cifar100_loaders(batch_size=32, class_limit=1000):
 def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr =8e-6, bn=512, decay=1e-6):
     
     device = 'cuda'
-    batch_size = 128
+    batch_size = 32
     total_classes = 10
     epochs= 150
     num_expirements = 1
@@ -128,14 +128,15 @@ def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr
             other_params = []
             
             for name, param in model.named_parameters():
-                if 'P' in name:
+                if 'P' in name or 'S' in name:
                     p_params.append(param)
                 else:
                     other_params.append(param)
             
             # Create separate optimizers
-            optimizer = optim.AdamW(other_params, lr=max_lr, weight_decay=decay)
-            p_optimizer = optim.AdamW(p_params, lr=1e-3, weight_decay=1e-4)
+            optimizer = optim.Adamax(other_params, lr=max_lr, weight_decay=decay)
+            # p_optimizer = optim.Adamax(p_params, lr=1e-5, weight_decay=1e-5)
+            p_optimizer = optim.RMSprop(p_params, lr=1e-4, weight_decay=1e-8, momentum=0.9)
             
             # Log parameter counts for debugging
             total_p_params = sum(p.numel() for p in p_params)
@@ -143,8 +144,8 @@ def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr
             print(f"P parameters: {total_p_params}, Other parameters: {total_other_params}")
             
             criterion = nn.CrossEntropyLoss()
-            scheduler = OneCycleLR(optimizer, max_lr=max_lr, total_steps=epochs*len(trainloader), pct_start=0.15, div_factor=15)
-            p_scheduler = OneCycleLR(p_optimizer, max_lr=1.5*max_lr, total_steps=epochs*len(trainloader), pct_start=0.15, div_factor=10)
+            scheduler = ExponentialLR(optimizer, gamma=0.98)
+            p_scheduler = ExponentialLR(p_optimizer, gamma=0.999)
             
             # Setup logging
             session_path = Path(ARTIFACTS_DIR) / dset_name / session_name / 'RAF' / f'r_{rank}' / f'exp_{i}'
@@ -176,6 +177,7 @@ def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr
                     loss.backward()
                     optimizer.step()
                     p_optimizer.step()
+                    
                     running_loss += loss.item()
                     
                     pred_labels = torch.argmax(outputs, dim=1)
@@ -188,15 +190,13 @@ def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr
                     
                     del inputs, outputs, labels
                 
-                # Update learning rate
-                    scheduler.step()
-                    # p_scheduler.step()
-
+                scheduler.step()
                 p_scheduler.step()
+                    
                 current_lr = optimizer.param_groups[0]['lr']
-                current_p_lr = p_optimizer.param_groups[0]['lr']
+                # current_p_lr = p_optimizer.param_groups[0]['lr']
                 writer.add_scalar('LR', current_lr, epoch)
-                writer.add_scalar('LR_P', current_p_lr, epoch)
+                # writer.add_scalar('LR_P', current_p_lr, epoch)
                 
                 # Calculate epoch metrics
                 epoch_loss = running_loss / len(trainloader)
@@ -256,4 +256,4 @@ if __name__ == "__main__":
     decays = [1e-4]
     
     
-    train_PFA_cifar10_gen(RafViTV2, f'RAFVIT_rank_16', max_lr=5e-4, bn=512, decay=5e-5, ranks=[1024])
+    train_PFA_cifar10_gen(RafViTV2, f'RAFVIT_rank_16', max_lr=5e-4, bn=512, decay=5e-5, ranks=[256])
