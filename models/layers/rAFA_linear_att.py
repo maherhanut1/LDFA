@@ -32,7 +32,7 @@ class LinearGrad(autograd.Function):
             grad_input_intermediate = grad_output @ (P)
             grad_input = grad_input_intermediate @ (Q)
             grad_input_optimal = grad_output @ (weight)
-            grad_input_optimal = grad_input_optimal.reshape(-1, grad_input_optimal.shape[-1])
+            # grad_input_optimal = grad_input_optimal.reshape(-1, grad_input_optimal.shape[-1])
             
         # Gradient weights
         if context.needs_input_grad[1]:
@@ -62,8 +62,8 @@ class LinearGrad(autograd.Function):
                 # a = grad_output.T @ yp
                 # grad_P = (b - a) #/ std_max
 
-                grad_P = grad_output.t() @ ((grad_input_intermediate - grad_input_optimal) @ Q.t())
-                
+                # grad_P = grad_output.t() @ ((grad_input.reshape(-1, grad_input.shape[-1]) - grad_input_optimal) @ Q.t())
+                grad_P = grad_output.t() @ (input @ Q.t())
                 # grad_P_intermediate = grad_output.t() @ grad_input_intermediate.reshape(-1, grad_input_intermediate.shape[-1]) 
                 # grad_P = + grad_P_intermediate - P * ((torch.linalg.norm(grad_P_intermediate, dim=0) / torch.linalg.norm(P, dim=0)))[None]
                 
@@ -74,13 +74,14 @@ class LinearGrad(autograd.Function):
             
         if grad_input_intermediate is not None and context.needs_input_grad[3]:
             grad_Q = grad_input_intermediate.view(-1, grad_input_intermediate.shape[-1]).t() @ (input)
-            # grad_Q = Q * 0
+            # grad_Q = P.t() @ grad_output.t() @ ((grad_input.reshape(-1, grad_input.shape[-1]) - grad_input_optimal))
             
         # Gradient bias
         if bias is not None and context.needs_input_grad[4]:
             grad_bias = grad_output.sum(0).squeeze(0)
 
         return grad_input, grad_weight, grad_P, grad_Q, grad_bias, grad_bias_backward, None
+
 
 
 class Linear(nn.Linear):
@@ -117,6 +118,24 @@ class Linear(nn.Linear):
         # self.register_forward_pre_hook(self.normalize_P)
         self.register_full_backward_hook(self.gradient_clip)
         
+    def init_svd_approx(self):
+        """Initialize P and Q such that QP approximates the current weight matrix W"""
+        # Compute SVD of W: W = U @ S @ V^T
+        # W shape: (out_features, in_features)
+        U, S, Vt = torch.linalg.svd(self.weight.data, full_matrices=False)
+        
+        # Take top-k singular values and vectors (k = rank)
+        k = min(self.rank, len(S))
+        U_k = U[:, :k]  # (out_features, k)
+        S_k = S[:k]     # (k,)
+        Vt_k = Vt[:k, :]  # (k, in_features)
+        
+        # Initialize P and Q such that QP ≈ W
+        # P = U_k * sqrt(S_k), Q = sqrt(S_k) * Vt_k
+        sqrt_S_k = torch.sqrt(S_k)
+        self.P.data = U_k * sqrt_S_k.unsqueeze(0)  # (out_features, k)
+        self.Q.data = (sqrt_S_k.unsqueeze(1) * Vt_k)  # (k, in_features)
+        
     def init_parameters(self) -> None:
         fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(self.weight)
         # Xavier initialization
@@ -146,9 +165,21 @@ class Linear(nn.Linear):
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
                 nn.init.uniform_(self.bias, -bound, bound)
                 nn.init.uniform_(self.bias_backward, -bound, bound)
+        # SVD-based initialization to approximate W with QP
+        elif self.init == 'svd_approx':
+            # Initialize weight normally first
+            nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
             
-                    
+            # Use the separate function for SVD initialization
+            self.init_svd_approx()
             
+            # Initialize bias
+            if self.bias is not None:
+                bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+                nn.init.uniform_(self.bias, -bound, bound)
+                nn.init.uniform_(self.bias_backward, -bound, bound)
+
+
     def forward(self, x: Tensor, gt=None) -> Tensor:
         return LinearGrad.apply(x, self.weight, self.P, self.Q, self.bias, self.bias_backward, gt)
 

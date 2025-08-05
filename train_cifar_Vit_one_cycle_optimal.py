@@ -1,5 +1,5 @@
 import torch
-from torch.optim.lr_scheduler import StepLR, OneCycleLR, ExponentialLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import StepLR, OneCycleLR, ExponentialLR
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -8,11 +8,11 @@ from tqdm import tqdm
 from pathlib import Path
 import numpy as np
 import os
+from sklearn.metrics import accuracy_score
 from torch.utils.tensorboard import SummaryWriter
 
 from models.ViT import ViT
 from models.RAF_ViT import RafViT
-from models.RAF_ViT_v2 import RafViTV2
 from models.FC import FC_rAFA
 from models.layers.rAFA_linear_att import Linear as rAFALinear
 # from utils.model_trainer import TrainingManager
@@ -86,14 +86,21 @@ def get_cifar100_loaders(batch_size=32, class_limit=1000):
                                          shuffle=False, num_workers=1)
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
     return trainloader, testloader
-    
 
-def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr =8e-6, bn=512, decay=1e-6):
+def reinitialize_pq_layers(model):
+    """Reinitialize P and Q matrices for all rAFA layers in the model"""
+    for module in model.modules():
+        if hasattr(module, 'init_svd_approx'):
+            module.init_svd_approx()
+            print(f"Reinitialized P and Q for layer: {type(module).__name__}")
+
+def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=512, decay=1e-6, 
+                         reinit_freq=5):
     
     device = 'cuda'
     batch_size = 32
     total_classes = 10
-    epochs= 150
+    epochs = 150
     num_expirements = 1
     session_name = session_name
     dset_name = 'cifar10'
@@ -120,7 +127,7 @@ def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr
             # model = FC_rAFA()
                 
             model.to(device)
-            max_lr = max_lr 
+            max_lr = max_lr
             
             # Setup optimizers and loss
             # Separate P parameters from other parameters
@@ -128,7 +135,7 @@ def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr
             other_params = []
             
             for name, param in model.named_parameters():
-                if 'P' in name or 'S' in name:
+                if 'P' in name:
                     p_params.append(param)
                 else:
                     other_params.append(param)
@@ -158,6 +165,11 @@ def train_PFA_cifar10_gen(class_type: RafViTV2, session_name, ranks=[10], max_lr
             # Training loop
             best_accuracy = 0
             for epoch in range(epochs):
+                # Reinitialize P and Q every reinit_freq epochs (except at epoch 0)
+                if epoch > 0 and epoch % reinit_freq == 0:
+                    print(f"Reinitializing P and Q at epoch {epoch}")
+                    reinitialize_pq_layers(model)
+                
                 # Training phase
                 model.train()
                 running_loss = 0.0
@@ -256,4 +268,5 @@ if __name__ == "__main__":
     decays = [1e-4]
     
     
-    train_PFA_cifar10_gen(RafViTV2, f'RAFVIT_rank_16', max_lr=5e-4, bn=512, decay=5e-5, ranks=[256])
+    train_PFA_cifar10_gen(RafViT, f'RAFVIT_rank_16_optimal', max_lr=3e-4, bn=512, decay=1e-4, 
+                         ranks=[1], reinit_freq=5)
