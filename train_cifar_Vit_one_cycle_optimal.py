@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 from torch.utils.tensorboard import SummaryWriter
 
 from models.ViT import ViT
-from models.RAF_ViT import RafViT
+from models.RAF_ViT_v2 import RafViTV2
 from models.FC import FC_rAFA
 from models.layers.rAFA_linear_att import Linear as rAFALinear
 # from utils.model_trainer import TrainingManager
@@ -92,12 +92,12 @@ def reinitialize_pq_layers(model):
     for module in model.modules():
         if hasattr(module, 'init_svd_approx'):
             module.init_svd_approx()
-            print(f"Reinitialized P and Q for layer: {type(module).__name__}")
+            # print(f"Reinitialized P and Q for layer: {type(module).__name__}")
 
 def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=512, decay=1e-6, 
                          reinit_freq=5):
     
-    device = 'cuda'
+    device = 'cpu'
     batch_size = 32
     total_classes = 10
     epochs = 150
@@ -164,11 +164,9 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
             
             # Training loop
             best_accuracy = 0
+            iter_num = 0
             for epoch in range(epochs):
-                # Reinitialize P and Q every reinit_freq epochs (except at epoch 0)
-                if epoch > 0 and epoch % reinit_freq == 0:
-                    print(f"Reinitializing P and Q at epoch {epoch}")
-                    reinitialize_pq_layers(model)
+                # Reinitialize P and Q every reinit_freq epochs (except at epoch 0
                 
                 # Training phase
                 model.train()
@@ -179,6 +177,10 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
                     inputs, labels = inputs.to(device), labels.to(device)
                     optimizer.zero_grad()
                     # p_optimizer.zero_grad()
+                    iter_num += 1
+
+                    if iter_num % 100 == 0:
+                        reinitialize_pq_layers(model)
                     
                     outputs, regularization_losses = model(inputs, labels)
                     loss = criterion(outputs, labels)
@@ -268,5 +270,5 @@ if __name__ == "__main__":
     decays = [1e-4]
     
     
-    train_PFA_cifar10_gen(RafViT, f'RAFVIT_rank_16_optimal', max_lr=3e-4, bn=512, decay=1e-4, 
+    train_PFA_cifar10_gen(RafViTV2, f'RAFVIT_rank_16_optimal', max_lr=3e-4, bn=512, decay=1e-4, 
                          ranks=[1], reinit_freq=5)

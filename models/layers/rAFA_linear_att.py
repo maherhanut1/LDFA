@@ -31,7 +31,7 @@ class LinearGrad(autograd.Function):
             # Use the B matrix to compute the gradient
             grad_input_intermediate = grad_output @ (P)
             grad_input = grad_input_intermediate @ (Q)
-            grad_input_optimal = grad_output @ (weight)
+            # grad_input_optimal = grad_output @ (weight)
             # grad_input_optimal = grad_input_optimal.reshape(-1, grad_input_optimal.shape[-1])
             
         # Gradient weights
@@ -41,8 +41,6 @@ class LinearGrad(autograd.Function):
             grad_weight = grad_output.t() @ (input)
         
         if context.needs_input_grad[2]:
-            
-            
             
             if gt is not None:
                 raise ValueError
