@@ -55,7 +55,7 @@ def train(session_name, layer, lr, wd, ranks, gamma):
             
     epochs = 160
     vvs_layer = layer
-    num_expirements = 5
+    num_expirements = 2
     accuracies = dict()
     max_lr = lr #5e-6
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
@@ -138,7 +138,7 @@ def train_const_all(session_name, layer, lr, wd, ranks, with_p = True):
     with open(rf'artifacts/{dset_name}/{session_name}/{vvs_layer}/accuracies.json', 'w') as f:
         json.dump(accuracies, f)
         
-def train_BP(session_name, lr, wd, gamma):
+def train_BP(session_name, lr, wd, gamma, bn=32):
     
     device = 'cuda'
     dset_name = 'cifar10'
@@ -147,13 +147,13 @@ def train_BP(session_name, lr, wd, gamma):
     trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
 
     epochs = 160
-    num_expirements = 10
+    num_expirements = 5
     accuracies = dict()
     max_lr = lr #5e-6
     #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
     accuracies['BP'] = []
     for i in range(num_expirements):
-        model = AlexNet_cifar(1, bn=32, kernel_size=9, num_classes=total_classes, device=device)
+        model = AlexNet_AFA(1, bn=bn, kernel_size=9, num_classes=total_classes, device=device)
         # model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
         model.to(device)
 
@@ -186,5 +186,6 @@ if __name__ == "__main__":
     # train_const_all('constraint_all_v3', 'constrain_all_update_QP', 5e-4, wd = 5e-5, ranks=[32, 16, 8, 4, 2, 1], with_p=True)
     
     
-    # train('Retina_model_constrain_retina_only_lr_5e4_wd_5e5_gamma_975', 'vvs1', lr=5e-4, wd=5e-5, ranks=[32, 16, 8, 4], gamma=0.975)
-    train_BP('Retina_model_constrain_retina_only_lr_5e4_wd_5e5_gamma_975', lr=5e-4, wd=5e-5, gamma=0.975)
+    train('Retina_model_constrain_retina_only_lr_4e4_wd_1e4_gamma_975', 'vvs1', lr=4e-4, wd=1e-4, ranks=[1], gamma=0.975)
+    # train_BP('Retina_model_constrain_retina_only_lr_4e4_wd_1e4_gamma_975', lr=4e-4, wd=1e-4, gamma=0.975, bn=32)
+    # train_BP('Retina_model_constrain_retina_only_lr_4e4_wd_1e4_gamma_975_bn_4', lr=4e-4, wd=1e-4, gamma=0.975, bn=4)

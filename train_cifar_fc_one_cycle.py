@@ -106,7 +106,7 @@ def train_PFA_cifar100_subsets(session_name, layer, max_lr =1e-4, bn=512, ranks 
     batch_size = 32
     total_classes = class_limit
     num_expirements = 5
-    epochs = 160
+    epochs = 100
     session_name = session_name
     dset_name = f'cifar_subsets'
     trainloader, testloader = get_cifar100_loaders(batch_size=batch_size, class_limit=class_limit)
@@ -118,7 +118,7 @@ def train_PFA_cifar100_subsets(session_name, layer, max_lr =1e-4, bn=512, ranks 
             model = FC_rAFA(input_dim=3*32*32, hidden_dim=bn, num_classes=total_classes)
             model.net[LAYER_IDX['layer2']] = rAFALinear(bn, bn, rank=rank, requires_gt=False, update_P=True, update_Q=True)
             model.net[LAYER_IDX['layer3']] = rAFALinear(bn, bn, rank=rank, requires_gt=False, update_P=True, update_Q=True)
-            model.net[LAYER_IDX['layer4']] = rAFALinear(bn, bn, rank=min(rank, class_limit), requires_gt=True, update_P=True, update_Q=True)
+            model.net[LAYER_IDX['layer4']] = rAFALinear(bn, class_limit, rank=min(rank, class_limit), requires_gt=True, update_P=True, update_Q=True)
             max_lr = max_lr
             model = model.to(device)
             tm = TrainingManager(model,
@@ -128,7 +128,7 @@ def train_PFA_cifar100_subsets(session_name, layer, max_lr =1e-4, bn=512, ranks 
                             nn.CrossEntropyLoss(),
                             epochs,
                             ExponentialLR,
-                            rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{class_limit}/{layer}/r_{rank}/exp_{i}",
+                            rf"artifacts/{dset_name}/{session_name}/{class_limit}/{layer}/r_{rank}/exp_{i}",
                             optimizer_params={'lr': max_lr, 'weight_decay': decay, 'amsgrad': True},
                             scheduler_params={'gamma': gamma},
                             device=device
@@ -140,7 +140,7 @@ def train_PFA_cifar100_subsets(session_name, layer, max_lr =1e-4, bn=512, ranks 
     import json
     
     
-    with open(rf'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset_name}/{session_name}/{class_limit}/{layer}/accuracies.json', 'w') as f:
+    with open(rf'artifacts/{dset_name}/{session_name}/{class_limit}/{layer}/accuracies.json', 'w') as f:
         json.dump(all_accuracies, f)
         
         
@@ -380,7 +380,13 @@ if __name__ == "__main__":
 
     
     # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='layer2', max_lr=6e-4, bn=512, ranks=[8, 16, 32, 64, 80, 86, 100, 128], decay= 4e-4, class_limit=100, gamma=0.975)
-    train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='Constraint_all', max_lr=6e-4, bn=512, ranks=[1, 4, 8, 16, 32, 42, 50, 64], decay= 4e-4, class_limit=50, gamma=0.975)
+    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='Constraint_all', max_lr=6e-4, bn=512, ranks=[1, 4, 8, 16, 32, 64, 75, 128], decay= 4e-4, class_limit=75, gamma=0.975)
+    
+    
+    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='Constraint_all', max_lr=6e-4, bn=512, ranks=[2, 8, 16, 32, 42, 50, 64, 128], decay= 4e-4, class_limit=50, gamma=0.975)
+    
+    # train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='Constraint_all', max_lr=6e-4, bn=512, ranks=[64, 80, 100, 128], decay= 4e-4, class_limit=100, gamma=0.975)
+    train_PFA_cifar100_subsets('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', layer='Constraint_all', max_lr=6e-4, bn=512, ranks=[100], decay= 4e-4, class_limit=100, gamma=0.975)
     # train_PFA_cifar100_subsets_BP('512x4_lr_6e-4_wd_4e-4_gamma_975_subsets', max_lr=6e-4, bn=512, decay=4e-4, class_limit=100)
     
     

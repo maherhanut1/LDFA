@@ -21,9 +21,6 @@ from models.FC import FC, FC_rAFA
 from models.layers.rAFA_linear import Linear as rAFALinear
 from train_cifar_fc_one_cycle import get_cifar10_loaders, get_cifar100_loaders
 
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-
 def load_dict_from_json(path: Path):
     with open(path, 'r+') as f:
         loaded_file = json.load(f)
@@ -33,7 +30,7 @@ def load_dict_from_json(path: Path):
 
 def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], extras=[], lims=None):
     
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(8, 4))
     print(mpl.style.available)
     mpl.style.use('seaborn-v0_8-whitegrid')
     
@@ -64,15 +61,16 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         paired_sorted = sorted(zip(ranks, means, stds))
         ranks, means, stds = zip(*paired_sorted)
         print(f'for {k} means are {means} for ranks{ranks}, and std are {vals_acc.std(1)}')
-        # plt.errorbar(ranks, means, yerr=stds, fmt='-o', capsize=5,
-        # capthick=2, ecolor='black', marker='s', 
-        # markersize=7, linestyle='-', linewidth=2, label=f'{k}: Mean ± SE')
         means = np.array(means)
         ranks = np.array(ranks)
         stds = np.array(stds)
         
         # plt.errorbar(ranks, (means - means.min()) / (means.max() - means.min()), yerr=stds*0, label=f'{k}: Mean ± SE', fmt='-o', capsize=5)
-        plt.errorbar(ranks, means, yerr=stds, label=f'{k}: Mean ± STD', fmt='-o', capsize=5, color=blues[-2])
+        
+        if c_idx == 0:
+            plt.errorbar(ranks, means, yerr=stds, label=f'{k}', fmt='-o', capsize=5, color=blues[0])
+        elif c_idx == 1:
+            plt.errorbar(ranks, means, yerr=stds, label=f'{k}', fmt='-o', capsize=5, color=blues[1], linestyle='dashed')
         c_idx+=1
     
     for dictionary, name, color in extras:
@@ -87,25 +85,26 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
         plt.plot([1,max_rank], [mean, mean], linestyle='-.', linewidth=2, color=color)
         std = vals_acc.std(1)
         
-        plt.errorbar([5], [mean],yerr=[std], fmt='-.', capsize=5,
+        plt.errorbar([8], [mean],yerr=[std], fmt='-.', capsize=5,
         capthick=2, ecolor=color, marker='s', 
-        markersize=7, linestyle='-.', linewidth=2, label=f'{name}: Mean ± STD', color=color)
+        markersize=7, linestyle='-.', linewidth=2, label=f'{name}', color=color)
         
         
     # plt.grid(True)
-    plt.xlabel('Backward Rank', fontsize=18, fontname='Arial')
-    plt.ylabel('Accuracy', fontsize=18, fontname='Arial')
+    plt.xlabel('Backward Rank', fontsize=15, fontname='Arial')
+    plt.ylabel('Accuracy', fontsize=15, fontname='Arial')
     # plt.title('Mean Accuracy and Standard Error over Trials at each Layer', fontsize=14, fontname='Arial')
-    plt.xticks(fontsize=15, fontname='Arial')
-    plt.yticks(fontsize=15, fontname='Arial')
+    plt.xticks(fontsize=11, fontname='Arial')
+    plt.yticks(fontsize=11, fontname='Arial')
     if lims is not None:
         plt.ylim(lims)
     plt.legend(fontsize=18)
     plt.savefig(save_name)
+    plt.savefig(save_name.split('.')[0] + '.SVG')
     plt.show()
     
     
-def plot_accuracies_from_dicts_subsets(subset_names, bn_dicts, const_dicts, skips):
+def plot_accuracies_from_dicts_subsets(subset_names, bn_dicts, const_dicts, skips, lims):
     
     #get bn mean
     bn_means = []
@@ -114,7 +113,7 @@ def plot_accuracies_from_dicts_subsets(subset_names, bn_dicts, const_dicts, skip
             bn_means.append(np.mean(v_acc))
             
             
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(8, 4))
     mpl.style.use('seaborn-v0_8-whitegrid')
     # Font settings
     plt.rc('font', family='Arial', size=12)
@@ -149,20 +148,31 @@ def plot_accuracies_from_dicts_subsets(subset_names, bn_dicts, const_dicts, skip
         stds = np.array(stds)
         
         # plt.errorbar(ranks, (means - means.min()) / (means.max() - means.min()), yerr=stds*0, label=f'{k}: Mean ± SE', fmt='-o', capsize=5)
-        plt.errorbar(ranks, means/bn_means[i], yerr=stds, label=f'{subset_names[i]}: Mean ± STD', fmt='-o', capsize=5, color=blues[c_idx])
+        if c_idx == 0:
+            plt.errorbar(ranks, means, yerr=stds, label=f'{subset_names[i]}', fmt='-o', capsize=5, color=blues[c_idx])
+            plt.plot([45, 128], [bn_means[i], bn_means[i]], color='black', linewidth=1.5)
+        if c_idx == 1:
+            plt.errorbar(ranks, means, yerr=stds, label=f'{subset_names[i]}', fmt='-o', capsize=5, color=blues[c_idx], linestyle='dotted')
+            plt.plot([50, 128], [bn_means[i], bn_means[i]], linestyle='dotted', color='black', linewidth=1.5)
+        if c_idx == 2:
+            plt.errorbar(ranks, means, yerr=stds, label=f'{subset_names[i]}', fmt='-o', capsize=5, color=blues[c_idx], linestyle='dashed')
+            plt.plot([55, 128], [bn_means[i], bn_means[i]], linestyle='dashed', color='black', linewidth=1.5)
+            
         c_idx += 1
         
         
     # plt.grid(True)
-    plt.xlabel('Backward Rank', fontsize=18, fontname='Arial')
-    plt.ylabel('Accuracy', fontsize=18, fontname='Arial')
+    plt.xlabel('Backward Rank', fontsize=15, fontname='Arial')
+    plt.ylabel('Accuracy', fontsize=15, fontname='Arial')
     # plt.title('Mean Accuracy and Standard Error over Trials at each Layer', fontsize=14, fontname='Arial')
-    plt.xticks(fontsize=15, fontname='Arial')
-    plt.yticks(fontsize=15, fontname='Arial')
+    plt.xticks(fontsize=11, fontname='Arial')
+    plt.yticks(fontsize=11, fontname='Arial')
     # if lims is not None:
-    #     plt.ylim(lims)
+    plt.ylim(lims)
     plt.legend(fontsize=18)
-    # plt.savefig(rf"to_jonathan/subsets.pdf")
+    plt.tight_layout()
+    plt.savefig(rf"plots/subsets_layer4_2.SVG")
+    plt.savefig(rf"plots/subsets_layer4_2.pdf")
     plt.show()
 
 def evaluate_model(model, testloader):
@@ -182,25 +192,24 @@ def evaluate_model(model, testloader):
 def get_accuracies_from_training_path(path, model, layer_idx):
     
     # _, testloader = get_cifar10_loaders(batch_size=64)
-    _, testloader = get_cifar10_loaders(batch_size=64)
+    # _, testloader = get_cifar10_loaders(batch_size=64)
+    _, testloader = get_cifar100_loaders(batch_size=64, class_limit=100)
 
     path = Path(path)
     accuracies = dict()
     for rank_folder in path.iterdir():
         rank = int(rank_folder.stem.split('_')[-1])
-        if rank == 256:
-            pass
         accuracies[rank] = []
         for exp_folder in tqdm(rank_folder.iterdir()):
-           weights_path = exp_folder / 'checkpoints' / 'best.pth'
-           model.net[3] = rAFALinear(512, 512, rank=rank)
-           model.net[6] = rAFALinear(512, 512, rank=rank)
-           model.net[10] = rAFALinear(512, 10, rank=10)
-           model.load_state_dict(torch.load(weights_path))
-           model.to('cuda')
-           model.eval()
-           accuracy = evaluate_model(model, testloader)
-           accuracies[rank].append(accuracy)
+            weights_path = exp_folder / 'checkpoints' / 'best.pth'
+            # model.net[layer_idx] = rAFALinear(512, 100, rank=rank)
+        #    model.net[6] = rAFALinear(512, 512, rank=rank)
+        #    model.net[10] = rAFALinear(512, 10, rank=10)
+            model.load_state_dict(torch.load(weights_path), strict=False)
+            model.to('cuda')
+            model.eval()
+            accuracy = evaluate_model(model, testloader)
+            accuracies[rank].append(accuracy)
     with open(path / 'accuracies.json', 'w') as f:
         json.dump(accuracies, f)
         
@@ -247,16 +256,30 @@ def create_image_montage(image_list):
 
 def plot_cifar_subsets():
     
-    bp_20 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/20/BP/accuracies.json")
-    bp_40 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/40/BP/accuracies.json")
-    bp_100 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/100/BP/accuracies.json")
+    bp_50 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/50/BP/accuracies.json")
+    bp_75 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/75/BP/accuracies.json")
+    bp_100 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/100/BP/accuracies.json")
     
-    layer2_20 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/20/layer4/accuracies.json")
-    layer2_40 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/40/layer4/accuracies.json")
-    layer2_100 = load_dict_from_json(rf"artifacts/subsets/512x4_lr_4e-4_wd_5e-4_gamma_975_subsets/100/layer4/accuracies.json")
+    layer2_50 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/50/layer2/accuracies.json")
+    layer2_75 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/75/layer2/accuracies.json")
+    layer2_100 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/100/layer2/accuracies.json")
+    
+    layer4_50 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/50/layer4/accuracies.json")
+    layer4_75 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/75/layer4/accuracies.json")
+    layer4_100 = load_dict_from_json(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/100/layer4/accuracies.json")
+    
+    const_all_50 = load_dict_from_json(rf'artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/50/Constraint_all/accuracies.json')
+    const_all_75 = load_dict_from_json(rf'artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/75/constraint_all/accuracies.json')
+    const_all_100 = load_dict_from_json(rf'artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/100/Constraint_all/accuracies.json')
+    
+    layer2_50.pop('42')
+    layer2_75.pop('64')
+    layer2_75.pop('70')
+    layer2_75.pop('75')
 
 
-    plot_accuracies_from_dicts_subsets(subset_names=[20, 40, 100], bn_dicts=[bp_20, bp_40, bp_100], const_dicts=[layer2_20, layer2_40, layer2_100], skips=[])
+    plot_accuracies_from_dicts_subsets(subset_names=['50 Classes', '75 Classes', '100 Classes'], bn_dicts=[bp_50, bp_75, bp_100], const_dicts=[const_all_50, const_all_75, const_all_100], skips=[], lims=[None, None])
+    # plot_accuracies_from_dicts_subsets(subset_names=[50, 75, 100], bn_dicts=[bp_50], const_dicts=[layer4_50], skips=[], lims=[None, None])
 
 def plot_cifar10():
     
@@ -268,16 +291,18 @@ def plot_cifar10():
     # smaller_net = load_dict_from_json(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/{dset}/{session_name}/64x4_no_constraint/accuracies.json")
     layer_2.pop('64')
     layer_3.pop('64')
-    plot_accuracies_from_dicts({'layer1': layer_2, 'layer2': layer_3, 'layer3': layer_4}, top_k=10, save_name='plots/512_x4.pdf', lims=[0.43, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
+    layer_2.pop('32')
+    layer_3.pop('32')
+    plot_accuracies_from_dicts({'$\mathregular{B_1}$': layer_2, '$\mathregular{B_2}$': layer_3, '$\mathregular{B_3}$': layer_4}, top_k=10, save_name='plots/512_x4.pdf', lims=[0.43, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
 
 
 def plot_DFA():
     
-    DFA = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_DFA_lr_5e-4_decay_4e-4_gamma_975/layer4/accuracies.json")
+    DFA = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_DFA_lr_6e-4_decay_4e-4_gamma_975/layer4/accuracies.json")
+    DFA_prev = load_dict_from_json(rf'artifacts/cifar10/512_x4_all/DFA_from_layer_3_lr_6e4_wd_4e4/layer4/accuracies.json')
     BP_baseline = load_dict_from_json(rf"artifacts/cifar10/512_x4_all/512x4_no_drop_out_BP_5e-4_decay_4e-4_gamma0.975/all/accuracies.json")
-
-
-    plot_accuracies_from_dicts({'DFA': DFA}, top_k=10, save_name='plots/512_x4_DFA.pdf', lims=[0.3, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
+    DFA_prev.pop('32')
+    plot_accuracies_from_dicts({'last layer': DFA, 'penultimate layer': DFA_prev}, top_k=10, save_name='plots/512_x4_DFA.pdf', lims=[0.3, 0.65], extras=[(BP_baseline, 'BP', 'black')]) #]
 
 
 def plot_width_effect():
@@ -307,7 +332,7 @@ def plot_width_effect():
     'ecolor': 'black'  # Color of the error bars
 }
     
-    fig, ax = plt.subplots(figsize=(11,7))
+    fig, ax = plt.subplots(figsize=(7,4))
     bar_width = 0.37  # Lowering bar width
     space = 0.4
     bar0 = ax.bar(0, BP.mean(), yerr=BP.std(), color='black', width=bar_width, error_kw=error_bar_style)
@@ -317,15 +342,16 @@ def plot_width_effect():
     bar4 = ax.bar(space * 4, const_10.mean(), yerr=const_10.std(), color=blues[3], width=bar_width, error_kw=error_bar_style)
     bar5 = ax.bar(space * 5, net_64.mean(), yerr=net_64.std(), color=greens[[0]], width=bar_width, error_kw=error_bar_style)
     
-    ax.legend([bar0, bar1, bar5], ['512 neurons', '512 neurons', '64 neurons'], loc='upper right', fontsize=14)
+    # ax.legend([bar0, bar1, bar5], ['512 neurons', '512 neurons', '64 neurons'], loc='upper right', fontsize=14)
 
     
     ax.set_ylim([0.55, 0.65])
-    ax.set_ylabel('Accuracy', fontsize=18)
+    ax.set_ylabel('Accuracy', fontsize=15)
     ax.set_xticks([space * i for i in range(6)])
     ax.set_xticklabels(['BP', 'rank 64', 'rank 32', 'rank 16', 'rank 10', '64 neurons'], fontsize=15)
-    # plt.tight_layout()
+    plt.tight_layout()
     plt.savefig('plots/width_effect.pdf')
+    plt.savefig('plots/width_effect.SVG')
     plt.show()
     plt.close()
     
@@ -337,6 +363,6 @@ if __name__ == "__main__":
     # plot_cifar10()
     
     
-    # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
-    # # model = FC_rAFA(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
-    # get_accuracies_from_training_path(rf"/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar10/512x4_no_drop_out_V2/all_constraint", model, 3)
+    # # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
+    # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=100, device='cuda')
+    # get_accuracies_from_training_path(rf"artifacts/cifar_subsets/512x4_lr_6e-4_wd_4e-4_gamma_975_subsets/100/Constraint_all", model, 10)

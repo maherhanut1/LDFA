@@ -10,7 +10,7 @@ import numpy as np
 import os
 
 from models.alexnet import AlexNet_cifar, AlexNet_AFA
-from models.VGG16 import CIFAR10CNN, CIFAR10CNNBP
+from models.VGG16 import CIFAR10CNN, CIFAR10CNNBP, CIFAR10CNNConstLast, CIFAR10CNNConstSecondBlock
 from utils.model_trainer import TrainingManager
 from models.layers.rAFA_conv import Conv2d as rAFAConv
 import torchvision
@@ -64,7 +64,7 @@ def get_cifar_10_loader(batch_size=32):
     ])
     
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=6)
+    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=1)
@@ -114,6 +114,86 @@ def train(session_name, lr, wd, ratio, update_backward):
     import json
     with open(rf'artifacts/{dset_name}/{session_name}/accuracies.json', 'w') as f:
         json.dump(accuracies, f)
+        
+        
+def train_const_last_block(session_name, lr, wd, ranks, update_backward):
+    
+    device = 'cuda'
+    dset_name = 'cifar10'
+    total_classes = 10
+    batch_size = 64
+    trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
+    
+    epochs = 200
+    num_expirements = 3
+    accuracies = dict()
+    max_lr = lr #5e-6
+    #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
+    
+    
+    for rank in ranks:
+        accuracies[rank] = []
+        for i in range(1, num_expirements):
+            model = CIFAR10CNNConstLast(update_backward=update_backward, rank=rank)
+            model.to(device)
+            tm = TrainingManager(model,
+                                trainloader,
+                                testloader,
+                                optim.Adam,
+                                nn.CrossEntropyLoss(),
+                                epochs,
+                                ExponentialLR,
+                                rf"artifacts/{dset_name}/{session_name}/rank_{rank}/exp_{i}",
+                                optimizer_params={'lr': max_lr, "weight_decay": wd},
+                                scheduler_params={'gamma': 0.98},
+                                device=device
+                                )
+            val_accuracy = tm.train_model()
+            accuracies[rank].append(val_accuracy)
+                    
+    import json
+    with open(rf'artifacts/{dset_name}/{session_name}/accuracies.json', 'w') as f:
+        json.dump(accuracies, f)
+        
+        
+def train_const_second_block(session_name, lr, wd, ranks, update_backward):
+    
+    device = 'cuda'
+    dset_name = 'cifar10'
+    total_classes = 10
+    batch_size = 64
+    trainloader, testloader = get_cifar_10_loader(batch_size=batch_size)
+    
+    epochs = 180
+    num_expirements = 2
+    accuracies = dict()
+    max_lr = lr #5e-6
+    #{'max_lr': max_lr, 'total_steps': total_steps, 'div_factor': 5, 'final_div_factor': 30} #epochs = 100
+    
+    
+    for rank in ranks:
+        accuracies[rank] = []
+        for i in range(num_expirements):
+            model = CIFAR10CNNConstSecondBlock(update_backward=update_backward, rank=rank)
+            model.to(device)
+            tm = TrainingManager(model,
+                                trainloader,
+                                testloader,
+                                optim.Adam,
+                                nn.CrossEntropyLoss(),
+                                epochs,
+                                ExponentialLR,
+                                rf"artifacts/{dset_name}/{session_name}/rank_{rank}/exp_{i}",
+                                optimizer_params={'lr': max_lr, "weight_decay": wd},
+                                scheduler_params={'gamma': 0.98},
+                                device=device
+                                )
+            val_accuracy = tm.train_model()
+            accuracies[rank].append(val_accuracy)
+                    
+    import json
+    with open(rf'artifacts/{dset_name}/{session_name}/accuracies.json', 'w') as f:
+        json.dump(accuracies, f)
 
         
         
@@ -128,10 +208,11 @@ if __name__ == "__main__":
     # train_BP('vgg16rAFA_x4_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 4)
     # train_BP('vgg16rAFA_x8_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 8)
     
+    # train_const_last_block('vgg16rAFA_constLast_lr_5e4_wd_5e5_gamma_98', lr=5e-4, wd=5e-5, ranks=[12],update_backward=True)
+    train_const_second_block('vgg16rAFA_SecondLast_lr_5e4_wd_5e5_gamma_98_V2_constlastalso', lr=5e-4, wd=5e-5, ranks=[8],update_backward=True)
     
-    
-    train('vgg16r_standard_FA_x1_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 1, update_backward=False)
-    train('vgg16r_standard_FA_x2_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 2, update_backward=False)
+    # train('vgg16r_standard_FA_x1_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 1, update_backward=False)
+    # train('vgg16r_standard_FA_x2_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 2, update_backward=False)
     # train('vgg16r_standard_FA_x4_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 4, update_backward=False)
     # train('vgg16r_standard_FA_x8_lr_5e4_wd_5e5_gamma_98', 5e-4, wd = 5e-5, ratio = 8, update_backward=False)
     
