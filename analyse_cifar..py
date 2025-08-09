@@ -229,11 +229,11 @@ def generate_receptive_fields(path, model, layer_idx):
            weights_path = exp_folder / 'checkpoints' / 'best.pth'
            receptive_fields_path = exp_folder / 'retina_rfs'
            receptive_fields_path.mkdir(exist_ok=True)
-        #    model.vvs[0] = rAFAConv(32, 32, 9, rank=rank, padding=9//2)
+        #    model.vvs[0] = AFAConv2d(32, 32, 9, rank=rank, padding=9//2)
            model.load_state_dict(torch.load(weights_path), strict=False)
-           model.to('cuda')
            model.eval()
-           retina = model.retina[:-1]
+           model.to('cuda')
+           retina = model.retina
            montage = get_rfs(retina)
            plt.imsave(receptive_fields_path / 'retina_rfs.png', montage, cmap='gray')
            
@@ -243,18 +243,18 @@ def get_rfs(retina):
     filters = []
     for i in range(32):
         img = torch.zeros((1,1, 32, 32), requires_grad=True, device='cuda')
-        sgd_optimizer = optim.SGD([img], lr=1)
+        sgd_optimizer = optim.SGD([img], lr=1, momentum=0)
         for _ in range(2):
             sgd_optimizer.zero_grad()
             output = retina(img)
-            l = -1 * output[:,i, 14:16, 14:16].max()
+            l = -1 * output[:,i, 16, 16]
             l.backward()
             sgd_optimizer.step()
     
         # img = (img - img.mean()) / (img.std() + 1e-5).sqrt()
-        filters.append((img.detach().cpu().numpy()[0,0], -1 * l.item()))
+        filters.append((img.detach().cpu().numpy()[0,0], l.item()))
 
-    filters = sorted(filters, key = lambda x: -x[1])
+    filters = sorted(filters, key = lambda x: x[1])
     # filters_vals = np.array([v[1] for v in filters])
     # filters_vals_mean = filters_vals.mean()
     filters_imgs = [(v[0] - v[0].mean()) / (v[0].std() + 1e-5) for v in filters]# if v[1] > filters_vals_mean - 0.5*filters_vals.std()]
@@ -370,12 +370,10 @@ if __name__ == "__main__":
     plot_cifar10()
     # get_accuracies_from_training_path(rf"artifacts/cifar10/vgg16rAFA_constLast_lr_5e4_wd_5e5_gamma_98")
     
-    # from models.layers.kDPFA import RConv2d as rADFAConv
-    # model = AlexNet_cifar(1, kernel_size=9, bn = 4, num_classes=10, device='cuda')
-    # model.vvs[0] = rADFAConv(4, 32, kernel_size=9, rank=32, padding=9//2)
-
-    # model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
-    # generate_receptive_fields(rf'artifacts/cifar10/Retina_model_constrain_retina_only_lr_4e4_wd_1e4_gamma_975/vvs1', model, layer_idx=0)
+    from models.layers.kDPFA import RConv2d as rADFAConv
+    model = AlexNet_cifar(1, kernel_size=9, bn = 32, num_classes=10, device='cuda')
+    # model.vvs[0] = AFAConv2d(32, 32, kernel_size=9, rank=32, padding=9//2)
+    generate_receptive_fields(r'artifacts/cifar10/Retina_model_constrain_retina_only_lr_5e4_wd_5e5_gamma_975/vvs1', model, layer_idx=3)
 
 
     # remove_epochs(r'/home/maherhanut/Documents/projects/EarlyVisualRepresentation_pfa/artifacts/cifar/bn_32_2vss_layers/vvs_2')

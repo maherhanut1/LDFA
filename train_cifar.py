@@ -32,7 +32,7 @@ def get_cifar_10_loader(batch_size=32):
 ])
     
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=1)
+    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=1)
@@ -53,7 +53,7 @@ def train(session_name, layer, lr, wd, ranks, gamma):
     }
     
             
-    epochs = 160
+    epochs = 120
     vvs_layer = layer
     num_expirements = 2
     accuracies = dict()
@@ -63,13 +63,13 @@ def train(session_name, layer, lr, wd, ranks, gamma):
         accuracies[rank] = []
         for i in range(num_expirements):
             model = AlexNet_AFA(1, kernel_size=9, bn = 32, num_classes=total_classes, device=device, update_p=True, update_q=True)
-            model.vvs[vvs_idx_dict[layer]] = rAFAConv(32, 32, 9, rank=rank, padding=9//2, update_p=True, update_q=True)
+            model.vvs[0] = rAFAConv(32, 32, 9, rank=rank, padding=9//2, update_p=True, update_q=True)
             model.to(device)
 
             tm = TrainingManager(model,
                                 trainloader,
                                 testloader,
-                                optim.Adam,
+                                optim.RMSprop,
                                 nn.CrossEntropyLoss(),
                                 epochs,
                                 ExponentialLR,

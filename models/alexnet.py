@@ -14,22 +14,22 @@ class AlexNet_cifar(nn.Module):
         
         self.retina = nn.Sequential(
             nn.Conv2d(input_channels, 32, kernel_size=kernel_size, padding=kernel_size//2),
-            nn.BatchNorm2d(32),
+            #nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Conv2d(32, bn, kernel_size=kernel_size, padding=kernel_size//2),
-            nn.BatchNorm2d(bn),
+            #nn.BatchNorm2d(bn),
             nn.ReLU(),
         )
     
         self.vvs = nn.Sequential(
             nn.Conv2d(bn, 32, kernel_size=kernel_size, padding=kernel_size//2),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=kernel_size, padding=kernel_size//2),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=kernel_size, padding=kernel_size//2),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
         )
         
@@ -59,22 +59,22 @@ class AlexNet_AFA(nn.Module):
         
         self.retina = nn.Sequential(
             AFAConv(input_channels, 32, kernel_size=kernel_size, padding=kernel_size//2, rank=constrain, update_q=update_q, update_p=update_p),
-            nn.BatchNorm2d(32),
+            #nn.BatchNorm2d(32),
             nn.ReLU(),
             AFAConv(32, bn, kernel_size=kernel_size, padding=kernel_size//2, rank=constrain, update_p=update_p, update_q=update_q),
-            nn.BatchNorm2d(bn),
+            #nn.BatchNorm2d(bn),
             nn.ReLU(),
         )
     
         self.vvs = nn.Sequential(
             AFAConv(bn, 32, kernel_size=kernel_size, padding=kernel_size//2, rank=constrain, update_p=update_p, update_q=update_q),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
             AFAConv(32, 32, kernel_size=kernel_size, padding=kernel_size//2, rank=constrain, update_p=update_p, update_q=update_q),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
             AFAConv(32, 32, kernel_size=kernel_size, padding=kernel_size//2, rank=constrain, update_p=update_p, update_q=update_q),
-            nn.BatchNorm2d(32),
+            # nn.BatchNorm2d(32),
             nn.ReLU(),
         )
         

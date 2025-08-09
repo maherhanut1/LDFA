@@ -98,6 +98,8 @@ def plot_accuracies_from_dicts(acc_dictionaries, top_k, save_name, skips=[], ext
     plt.yticks(fontsize=11, fontname='Arial')
     if lims is not None:
         plt.ylim(lims)
+    
+    plt.xlim(0)
     plt.legend(fontsize=18)
     plt.savefig(save_name)
     plt.savefig(save_name.split('.')[0] + '.SVG')
@@ -182,7 +184,7 @@ def evaluate_model(model, testloader):
     with torch.no_grad():
         for inputs, labels in testloader:
             inputs, labels = inputs.to('cuda'), labels.to('cuda')
-            outputs, _ = model(inputs)
+            outputs, _ = model(inputs, labels)
             val_predictions.extend(torch.argmax(outputs, dim=1).cpu().numpy())
             val_targets.extend(labels.cpu().numpy())
         val_accuracy = accuracy_score(val_targets, val_predictions)
@@ -358,10 +360,11 @@ def plot_width_effect():
            
 if __name__ == "__main__":
     # plot_DFA()
-    plot_cifar_subsets()
+    # plot_cifar_subsets()
     # plot_width_effect()
     # plot_cifar10()
     
+    plot_Vit()
     
     # # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=10, device='cuda')
     # model = FC(input_dim=32*32*3, hidden_dim=512, num_classes=100, device='cuda')
