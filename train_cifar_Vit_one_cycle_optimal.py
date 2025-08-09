@@ -93,12 +93,18 @@ def reinitialize_pq_layers(model):
         if hasattr(module, 'init_svd_approx'):
             module.init_svd_approx()
             # print(f"Reinitialized P and Q for layer: {type(module).__name__}")
+            
+def reinitialize_pq_layers_modules(modules, ratio):
+    
+    idx = torch.randint(len(modules), (int(ratio * len(modules)), ))
+    for i in idx:
+        modules[i].init_svd_approx()
 
 def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=512, decay=1e-6, 
                          reinit_freq=5):
     
-    device = 'cpu'
-    batch_size = 32
+    device = 'cuda'
+    batch_size = 128
     total_classes = 10
     epochs = 150
     num_expirements = 1
@@ -123,6 +129,8 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
                     emb_dropout=0.1,
                     rank=10,
                 )
+            
+            modules = [module for module in model.modules() if hasattr(module, 'init_svd_approx')]
             # model = torch.compile(model)
             # model = FC_rAFA()
                 
@@ -135,15 +143,14 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
             other_params = []
             
             for name, param in model.named_parameters():
-                if 'P' in name:
+                if 'P' in name or 'Q' in name:
                     p_params.append(param)
                 else:
                     other_params.append(param)
             
             # Create separate optimizers
-            optimizer = optim.Adamax(model.parameters(), lr=max_lr, weight_decay=decay)
-            # p_optimizer = optim.Adamax(p_params, lr=1e-5, weight_decay=1e-5)
-            # p_optimizer = optim.RMSprop(p_params, lr=1e-4, weight_decay=1e-8, momentum=0.9)
+            optimizer = optim.AdamW(other_params, lr=max_lr, weight_decay=decay)
+            optimizer_PQ = optim.AdamW(p_params, lr=5*max_lr, weight_decay=0.1*decay)
              
             # Log parameter counts for debugging
             total_p_params = sum(p.numel() for p in p_params)
@@ -152,7 +159,7 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
             
             criterion = nn.CrossEntropyLoss()
             scheduler = ExponentialLR(optimizer, gamma=0.98)
-            # p_scheduler = ExponentialLR(p_optimizer, gamma=0.999)
+            scheduler_PQ = ExponentialLR(optimizer_PQ, gamma=0.98)
             
             # Setup logging
             session_path = Path(ARTIFACTS_DIR) / dset_name / session_name / 'RAF' / f'r_{rank}' / f'exp_{i}'
@@ -176,11 +183,12 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
                 for batch_idx, (inputs, labels) in enumerate(tqdm(trainloader, desc=f'Epoch {epoch+1}/{epochs}')):
                     inputs, labels = inputs.to(device), labels.to(device)
                     optimizer.zero_grad()
-                    # p_optimizer.zero_grad()
+                    optimizer_PQ.zero_grad()
                     iter_num += 1
 
-                    if iter_num % 100 == 0:
-                        reinitialize_pq_layers(model)
+                    if iter_num % 150 == 0:
+                        # reinitialize_pq_layers(model)
+                        reinitialize_pq_layers_modules(modules, 0.5)
                     
                     outputs, regularization_losses = model(inputs, labels)
                     loss = criterion(outputs, labels)
@@ -190,7 +198,7 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
                     
                     loss.backward()
                     optimizer.step()
-                    # p_optimizer.step()
+                    optimizer_PQ.step()
                     
                     running_loss += loss.item()
                     
@@ -205,7 +213,7 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
                     del inputs, outputs, labels
                 
                 scheduler.step()
-                # p_scheduler.step()
+                scheduler_PQ.step()
                     
                 current_lr = optimizer.param_groups[0]['lr']
                 # current_p_lr = p_optimizer.param_groups[0]['lr']
@@ -270,5 +278,5 @@ if __name__ == "__main__":
     decays = [1e-4]
     
     
-    train_PFA_cifar10_gen(RafViTV2, f'RAFVIT_rank_16_optimal', max_lr=3e-4, bn=512, decay=1e-4, 
-                         ranks=[1], reinit_freq=5)
+    train_PFA_cifar10_gen(RafViTV2, f'test_optimal', max_lr=5e-4, bn=512, decay=5e-5, 
+                         ranks=[10], reinit_freq=150)

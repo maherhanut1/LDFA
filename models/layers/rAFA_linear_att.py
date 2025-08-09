@@ -31,7 +31,7 @@ class LinearGrad(autograd.Function):
             # Use the B matrix to compute the gradient
             grad_input_intermediate = grad_output @ (P)
             grad_input = grad_input_intermediate @ (Q)
-            # grad_input_optimal = grad_output @ (weight)
+            # grad_input = grad_output @ (weight)
             # grad_input_optimal = grad_input_optimal.reshape(-1, grad_input_optimal.shape[-1])
             
         # Gradient weights
@@ -41,38 +41,13 @@ class LinearGrad(autograd.Function):
             grad_weight = grad_output.t() @ (input)
         
         if context.needs_input_grad[2]:
-            
-            if gt is not None:
-                raise ValueError
-                # grad_P = grad_weight.matmul(Q.t())
-                # one_hot_targets = torch.zeros(grad_output.shape).to(gt.device)
-                # one_hot_targets.scatter_(torch.tensor(1).to(gt.device), gt.unsqueeze(1), 1.)
-                # one_hot_targets_mean = one_hot_targets.mean(0)
-                # normalized_one_hot_targets = (one_hot_targets - one_hot_targets_mean) / (one_hot_targets.std(0).max() + 1e-8)
-                # grad_P = -1 * (torch.eye(P.shape[0]).to(P.device) - P@P.T).mm(normalized_one_hot_targets.T @ (normalized_one_hot_targets) @ (P))
-                
-            else:
-                # std_max = ((grad_output**2).mean(0).max() + 1e-8)
-          
-                # yp = grad_input_intermediate.reshape(-1, grad_input_intermediate.shape[-1]) #(normalized_grad_output) @ (P)
-                # pyp = P @ yp.T
-                # b = pyp @ yp
-                # a = grad_output.T @ yp
-                # grad_P = (b - a) #/ std_max
-
-                # grad_P = grad_output.t() @ ((grad_input.reshape(-1, grad_input.shape[-1]) - grad_input_optimal) @ Q.t())
-                grad_P = grad_output.t() @ (input @ Q.t())
-                # grad_P_intermediate = grad_output.t() @ grad_input_intermediate.reshape(-1, grad_input_intermediate.shape[-1]) 
-                # grad_P = + grad_P_intermediate - P * ((torch.linalg.norm(grad_P_intermediate, dim=0) / torch.linalg.norm(P, dim=0)))[None]
-                
-                # grad_P = grad_P_intermediate -  ((torch.linalg.norm(grad_P_intermediate, dim=1) / torch.linalg.norm(P, dim=1)))[..., None] * P 
-                
-                # grad_P = grad_P_intermediate -  P * ((torch.linalg.norm(grad_P_intermediate, dim=0) / torch.linalg.norm(P, dim=0)))[None]
-
-            
+            # grad_P = grad_output.t() @ (input @ Q.t())
+            grad_P = grad_weight @ Q.t() #TODO ADD IF STATEMENT TO USE THE MORE EFFICIENT ONE DEPENDING ON DIMENSIONS
+              
         if grad_input_intermediate is not None and context.needs_input_grad[3]:
-            grad_Q = grad_input_intermediate.view(-1, grad_input_intermediate.shape[-1]).t() @ (input)
-            # grad_Q = P.t() @ grad_output.t() @ ((grad_input.reshape(-1, grad_input.shape[-1]) - grad_input_optimal))
+            # grad_Q = grad_input_intermediate.view(-1, grad_input_intermediate.shape[-1]).t() @ (input)
+            grad_Q = P.t() @ grad_weight
+        
             
         # Gradient bias
         if bias is not None and context.needs_input_grad[4]:
@@ -83,7 +58,7 @@ class LinearGrad(autograd.Function):
 
 
 class Linear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, rank: int, bias: bool = True, layer_config: dict = None, update_P = True, update_Q = False, requires_gt = False) -> None:
+    def __init__(self, in_features: int, out_features: int, rank: int, bias: bool = True, layer_config: dict = None, update_P = True, update_Q = True, requires_gt = False) -> None:
         super(Linear, self).__init__(in_features, out_features, bias)
         self.layer_config = layer_config
 
