@@ -131,10 +131,9 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
                 )
             
             modules = [module for module in model.modules() if hasattr(module, 'init_svd_approx')]
-            # model = torch.compile(model)
             # model = FC_rAFA()
-                
             model.to(device)
+            # model = torch.compile(model)
             max_lr = max_lr
             
             # Setup optimizers and loss
@@ -150,7 +149,7 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
             
             # Create separate optimizers
             optimizer = optim.AdamW(other_params, lr=max_lr, weight_decay=decay)
-            optimizer_PQ = optim.AdamW(p_params, lr=5*max_lr, weight_decay=0.1*decay)
+            optimizer_PQ = optim.AdamW(p_params, lr=6*max_lr, weight_decay=0.1*decay)
              
             # Log parameter counts for debugging
             total_p_params = sum(p.numel() for p in p_params)
@@ -186,9 +185,9 @@ def train_PFA_cifar10_gen(class_type, session_name, ranks=[10], max_lr=8e-6, bn=
                     optimizer_PQ.zero_grad()
                     iter_num += 1
 
-                    if iter_num % 150 == 0:
-                        # reinitialize_pq_layers(model)
-                        reinitialize_pq_layers_modules(modules, 0.5)
+                    if iter_num % 125 == 0:
+                        reinitialize_pq_layers(model)
+                        # reinitialize_pq_layers_modules(modules, 0.5)
                     
                     outputs, regularization_losses = model(inputs, labels)
                     loss = criterion(outputs, labels)

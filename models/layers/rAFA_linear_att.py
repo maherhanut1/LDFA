@@ -90,24 +90,46 @@ class Linear(nn.Linear):
         self.init_parameters()
         # self.register_forward_pre_hook(self.normalize_P)
         self.register_full_backward_hook(self.gradient_clip)
-        
-    def init_svd_approx(self):
-        """Initialize P and Q such that QP approximates the current weight matrix W"""
-        # Compute SVD of W: W = U @ S @ V^T
+    
+    
+    def init_svd_approx(self, niter: int = 4):
+        """
+        Initialize P and Q using a **randomized** SVD to approximate the weight matrix W.
+        This is much more efficient than a full SVD for large matrices.
+        """
         # W shape: (out_features, in_features)
-        U, S, Vt = torch.linalg.svd(self.weight.data, full_matrices=False)
         
-        # Take top-k singular values and vectors (k = rank)
-        k = min(self.rank, len(S))
-        U_k = U[:, :k]  # (out_features, k)
-        S_k = S[:k]     # (k,)
-        Vt_k = Vt[:k, :]  # (k, in_features)
+        # Use torch.svd_lowrank to efficiently compute the truncated SVD
+        # It directly returns the top 'rank' singular values and vectors
+        U, S, V = torch.svd_lowrank(self.weight.data, q=self.rank, niter=10)
         
-        # Initialize P and Q such that QP ≈ W
-        # P = U_k * sqrt(S_k), Q = sqrt(S_k) * Vt_k
-        sqrt_S_k = torch.sqrt(S_k)
-        self.P.data = U_k * sqrt_S_k.unsqueeze(0)  # (out_features, k)
-        self.Q.data = (sqrt_S_k.unsqueeze(1) * Vt_k)  # (k, in_features)
+        # Note: torch.svd_lowrank returns V, not V.T as torch.linalg.svd does.
+        # V has shape (in_features, rank), so we need its transpose.
+        Vt = V.t() # Vt shape: (rank, in_features)
+        
+        # Initialize P and Q such that P @ Q ≈ W
+        # P = U * sqrt(S), Q = sqrt(S) * Vt
+        sqrt_S = torch.sqrt(S)
+        self.P.data = U * sqrt_S.unsqueeze(0)        # (out_features, rank)
+        self.Q.data = sqrt_S.unsqueeze(1) * Vt      # (rank, in_features)
+
+    # def init_svd_approx(self):
+    #     """Initialize P and Q such that QP approximates the current weight matrix W"""
+    #     # Compute SVD of W: W = U @ S @ V^T
+    #     # W shape: (out_features, in_features)
+    #     U, S, Vt = torch.linalg.svd(self.weight.data, full_matrices=False)
+        
+    #     # Take top-k singular values and vectors (k = rank)
+    #     k = min(self.rank, len(S))
+    #     U_k = U[:, :k]  # (out_features, k)
+    #     S_k = S[:k]     # (k,)
+    #     Vt_k = Vt[:k, :]  # (k, in_features)
+        
+    #     # Initialize P and Q such that QP ≈ W
+    #     # P = U_k * sqrt(S_k), Q = sqrt(S_k) * Vt_k
+    #     sqrt_S_k = torch.sqrt(S_k)
+    #     self.P.data = U_k * sqrt_S_k.unsqueeze(0)  # (out_features, k)
+    #     self.Q.data = (sqrt_S_k.unsqueeze(1) * Vt_k)  # (k, in_features)
         
     def init_parameters(self) -> None:
         fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(self.weight)
